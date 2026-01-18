@@ -4,8 +4,7 @@ import {
   StyleSheet, 
   ScrollView, 
   Alert,
-  SafeAreaView,
-  Pressable 
+  Pressable
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MobileH1, MobileH2, MobileBody, MobileCaption } from '../components/Typography';
@@ -262,23 +261,23 @@ const AssignRunnersScreen = ({ route, navigation }) => {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={styles.container}>
         <View style={styles.loadingContainer}>
           <MobileH2>Loading...</MobileH2>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   if (teams.length === 0) {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={styles.container}>
         <Card style={styles.emptyCard}>
           <MobileH2>No Teams Found</MobileH2>
           <MobileBody>Please create teams first in the Assign Teams screen.</MobileBody>
           <ButtonPrimary onPress={() => navigation.goBack()}>Go Back</ButtonPrimary>
         </Card>
-      </SafeAreaView>
+      </View>
     );
   }
 
@@ -286,8 +285,12 @@ const AssignRunnersScreen = ({ route, navigation }) => {
   const availableAthletes = selectedTeam ? getAvailableAthletes(selectedTeam) : [];
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+    <View style={styles.container}>
+      <ScrollView 
+        style={styles.scrollView} 
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={true}
+      >
         
         {/* Header */}
         <Card style={styles.headerCard}>
@@ -452,7 +455,7 @@ const AssignRunnersScreen = ({ route, navigation }) => {
         </View>
 
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -460,9 +463,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: styleTokens.colors.background,
+    overflow: 'hidden',
   },
   scrollView: {
     flex: 1,
+    overflow: 'scroll',
   },
   scrollContent: {
     padding: scale(24),

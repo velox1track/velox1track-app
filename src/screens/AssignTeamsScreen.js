@@ -4,7 +4,6 @@ import {
   StyleSheet, 
   ScrollView, 
   Alert,
-  SafeAreaView,
   Pressable,
   Modal
 } from 'react-native';
@@ -239,8 +238,12 @@ const AssignTeamsScreen = () => {
   const isPlannedTeamsValid = !isNaN(plannedTeamsCount) && plannedTeamsCount > 0;
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+    <View style={styles.container}>
+      <ScrollView 
+        style={styles.scrollView} 
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={true}
+      >
         {/* Controls Section */}
         <Card style={styles.sectionCard} variant="primary">
           <MobileH2 style={styles.sectionTitle}>Generate Teams</MobileH2>
@@ -458,7 +461,7 @@ const AssignTeamsScreen = () => {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -466,9 +469,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: styleTokens.colors.background,
+    overflow: 'hidden',
   },
   scrollView: {
     flex: 1,
+    overflow: 'scroll',
   },
   scrollContent: {
     padding: scale(24),

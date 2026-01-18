@@ -4,9 +4,8 @@ import {
   StyleSheet, 
   ScrollView, 
   Alert,
-  SafeAreaView,
   Pressable,
-  Modal 
+  Modal
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import eventBus from '../lib/eventBus';
@@ -307,8 +306,12 @@ const ScoreboardScreen = ({ navigation }) => {
   const teamScores = calculateTeamScores();
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+    <View style={styles.container}>
+      <ScrollView 
+        style={styles.scrollView} 
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={true}
+      >
         {/* Team Scores Section */}
         <Card style={styles.sectionCard}>
           <View style={styles.sectionHeader}>
@@ -496,7 +499,7 @@ const ScoreboardScreen = ({ navigation }) => {
           </Card>
         )}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -1024,9 +1027,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: styleTokens.colors.background,
+    overflow: 'hidden',
   },
   scrollView: {
     flex: 1,
+    overflow: 'scroll',
   },
   scrollContent: {
     padding: scale(24),

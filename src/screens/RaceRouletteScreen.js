@@ -5,7 +5,6 @@ import {
   ScrollView, 
   TextInput, 
   Alert,
-  SafeAreaView,
   useWindowDimensions,
   Image,
   Pressable,
@@ -21,9 +20,11 @@ import { Card } from '../components/Card';
 import { ButtonPrimary, ButtonSecondary } from '../components';
 import { styleTokens } from '../theme';
 import { scale } from '../utils/scale';
+import { useResponsive } from '../utils/useResponsive';
 
 const RaceRouletteScreen = ({ navigation }) => {
   const { width, height } = useWindowDimensions();
+  const responsive = useResponsive();
   const isLandscape = width > height;
   
   const [eventPool, setEventPool] = useState(getDefaultEventPool());
@@ -241,8 +242,15 @@ const RaceRouletteScreen = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView style={[styles.scrollView, isLandscape && styles.scrollViewLandscape]}>
+    <View style={styles.container}>
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={[
+          styles.scrollContent,
+          responsive.isLargeScreen && styles.scrollContentCentered
+        ]}
+        showsVerticalScrollIndicator={true}
+      >
         {/* Controls removed - sequence comes from Settings */}
 
         {/* No Sequence Section */}
@@ -428,7 +436,7 @@ const RaceRouletteScreen = ({ navigation }) => {
           </Card>
         )}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -436,14 +444,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: styleTokens.colors.background,
+    overflow: 'hidden',
   },
   scrollView: {
     flex: 1,
+    overflow: 'scroll',
+  },
+  scrollContent: {
     padding: scale(24),
   },
-  scrollViewLandscape: {
-    padding: scale(24),
-    maxWidth: '100%', // Prevents content from extending beyond screen
+  scrollContentCentered: {
+    alignItems: 'center',
   },
   controlsSection: {
     marginBottom: scale(24),

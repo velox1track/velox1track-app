@@ -3,8 +3,7 @@ import {
   View, 
   StyleSheet, 
   ScrollView, 
-  Alert,
-  SafeAreaView 
+  Alert
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import AthleteForm from '../components/AthleteForm';
@@ -98,8 +97,12 @@ const TeamBuilderScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+    <View style={styles.container}>
+      <ScrollView 
+        style={styles.scrollView} 
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={true}
+      >
         {/* Form Section */}
         <Card style={styles.sectionCard} variant="primary">
           <MobileH2 style={styles.sectionTitle}>Add Athlete</MobileH2>
@@ -187,7 +190,7 @@ const TeamBuilderScreen = () => {
           )}
         </Card>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -195,9 +198,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: styleTokens.colors.background,
+    overflow: 'hidden',
   },
   scrollView: {
     flex: 1,
+    overflow: 'scroll',
   },
   scrollContent: {
     padding: scale(24),

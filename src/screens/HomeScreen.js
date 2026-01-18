@@ -1,9 +1,10 @@
- import React from 'react';
-import { View, StyleSheet, SafeAreaView, ScrollView, Image } from 'react-native';
+import React, { useEffect } from 'react';
+import { View, StyleSheet, ScrollView, Image, Platform } from 'react-native';
 import { MobileH1, MobileH2, MobileBody, MobileCaption } from '../components/Typography';
 import { Card } from '../components/Card';
 import { styleTokens } from '../theme';
 import { scale } from '../utils/scale';
+import { useResponsive } from '../utils/useResponsive';
 
 /**
  * Home Screen
@@ -21,43 +22,57 @@ import { scale } from '../utils/scale';
  * - Professional and innovative visual elements
  */
 const HomeScreen = ({ navigation }) => {
+  const responsive = useResponsive();
+  
   const navigateTo = (screenName) => {
     navigation.navigate(screenName);
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Background accent elements */}
-      <View style={styles.backgroundAccent} />
-      <View style={styles.backgroundAccent2} />
-      
+    <View style={styles.container}>
       <ScrollView 
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[
+          styles.scrollContent,
+          responsive.isLargeScreen && styles.scrollContentCentered
+        ]}
+        showsVerticalScrollIndicator={true}
+        alwaysBounceVertical={true}
       >
-        {/* Header Section with Logo */}
-        <View style={styles.header}>
-          {/* Logo */}
-          <Image 
-            source={require('../../Images/brand_logo.png')} 
-            style={styles.logo}
-            resizeMode="contain"
-          />
-          
-          {/* Title with accent underline */}
-          <View style={styles.titleContainer}>
-            <MobileH1 style={styles.title}>Velox 1</MobileH1>
-            <View style={styles.titleAccent} />
+        {/* Background accent elements - moved inside ScrollView */}
+        <View style={styles.backgroundAccent} />
+        <View style={styles.backgroundAccent2} />
+        
+        {/* Content wrapper for centering on large screens */}
+        <View style={[
+          styles.contentWrapper,
+          responsive.isLargeScreen && { maxWidth: responsive.maxContentWidth, alignSelf: 'center' }
+        ]}>
+          {/* Header Section with Logo */}
+          <View style={styles.header}>
+            {/* Logo */}
+            <Image 
+              source={require('../../Images/brand_logo.png')} 
+              style={[
+                styles.logo,
+                responsive.isLargeScreen && { width: responsive.scaleValue(80), height: responsive.scaleValue(80) }
+              ]}
+              resizeMode="contain"
+            />
+            
+            {/* Title with accent underline */}
+            <View style={styles.titleContainer}>
+              <MobileH1 style={styles.title}>Velox 1</MobileH1>
+              <View style={styles.titleAccent} />
+            </View>
+            
+            <MobileH2 style={styles.subtitle} numberOfLines={2}>
+              Track Competition Organizer
+            </MobileH2>
           </View>
-          
-          <MobileH2 style={styles.subtitle} numberOfLines={2}>
-            Track Competition Organizer
-          </MobileH2>
-        </View>
 
-        {/* Navigation Cards with enhanced styling */}
-        <View style={styles.cardContainer}>
+          {/* Navigation Cards with enhanced styling */}
+          <View style={styles.cardContainer}>
           <Card 
             variant="elevated" 
             style={[styles.navCard, { borderLeftWidth: scale(4), borderLeftColor: styleTokens.colors.primary }]}
@@ -124,15 +139,16 @@ const HomeScreen = ({ navigation }) => {
           </Card>
         </View>
 
-        {/* Footer Section with enhanced styling */}
-        <View style={styles.footer}>
-          <View style={styles.footerAccent} />
-          <MobileCaption style={styles.footerText} numberOfLines={2}>
-            Get started by creating your first event sequence or adding athletes!
-          </MobileCaption>
+          {/* Footer Section with enhanced styling */}
+          <View style={styles.footer}>
+            <View style={styles.footerAccent} />
+            <MobileCaption style={styles.footerText} numberOfLines={2}>
+              Get started by creating your first event sequence or adding athletes!
+            </MobileCaption>
+          </View>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -140,7 +156,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: styleTokens.colors.background,
-    position: 'relative',
+    ...(Platform.OS === 'web' ? {
+      height: '100vh',
+    } : {}),
   },
   
   // Background accent elements
@@ -153,6 +171,7 @@ const styles = StyleSheet.create({
     backgroundColor: styleTokens.colors.primaryLight,
     borderRadius: scale(100),
     opacity: 0.1,
+    pointerEvents: 'none', // Prevent blocking touch events
   },
   backgroundAccent2: {
     position: 'absolute',
@@ -163,14 +182,24 @@ const styles = StyleSheet.create({
     backgroundColor: styleTokens.colors.primary,
     borderRadius: scale(75),
     opacity: 0.05,
+    pointerEvents: 'none', // Prevent blocking touch events
   },
   
   scrollView: {
     flex: 1,
+    ...(Platform.OS === 'web' ? {
+      overflow: 'visible',
+    } : {}),
   },
   scrollContent: {
-    flexGrow: 1,
     paddingBottom: scale(40),
+  },
+  scrollContentCentered: {
+    alignItems: 'center',
+  },
+  contentWrapper: {
+    width: '100%',
+    paddingHorizontal: scale(24),
   },
   
   // Enhanced header with logo
@@ -178,7 +207,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: scale(20),
     paddingBottom: scale(32),
-    paddingHorizontal: scale(24),
   },
   logo: {
     width: scale(80),
@@ -210,7 +238,6 @@ const styles = StyleSheet.create({
   
   // Enhanced card container
   cardContainer: {
-    paddingHorizontal: scale(24),
     gap: scale(16),
   },
   navCard: {
@@ -251,7 +278,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: scale(24),
     paddingBottom: scale(20),
-    paddingHorizontal: scale(24),
   },
   footerAccent: {
     width: scale(40),

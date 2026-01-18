@@ -2,8 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { StatusBar } from 'expo-status-bar';
-import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
-import { loadFontsAsync } from './src/theme';
+import { View, Text, ActivityIndicator, StyleSheet, Platform } from 'react-native';
+import { loadfontsAsync } from './src/theme';
+
+// Import web scroll fix - this runs immediately when imported
+import './src/utils/webScrollFix';
 
 // Import the original app screens
 import HomeScreen from './src/screens/HomeScreen';
@@ -17,21 +20,21 @@ import SettingsScreen from './src/screens/SettingsScreen';
 const Stack = createStackNavigator();
 
 export default function App() {
-  const [fontsLoaded, setFontsLoaded] = useState(false);
-  const [fontError, setFontError] = useState(null);
+  const [fontsLoaded, setfontsLoaded] = useState(false);
+  const [fontError, setfontError] = useState(null);
 
   useEffect(() => {
-    async function loadFonts() {
+    async function loadfonts() {
       try {
-        await loadFontsAsync(); // Using the centralized function
-        setFontsLoaded(true);
+        await loadfontsAsync(); // Using the centralized function
+        setfontsLoaded(true);
       } catch (error) {
         console.error('Error loading fonts:', error);
-        setFontError(error.message);
-        setFontsLoaded(true);
+        setfontError(error.message);
+        setfontsLoaded(true);
       }
     }
-    loadFonts();
+    loadfonts();
   }, []);
 
   if (!fontsLoaded) {

@@ -4,7 +4,6 @@ import {
   StyleSheet, 
   ScrollView, 
   Alert,
-  SafeAreaView,
   Dimensions,
   useWindowDimensions,
   TouchableOpacity,
@@ -687,14 +686,14 @@ const SettingsScreen = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <ScrollView 
         style={styles.scrollView}
         contentContainerStyle={[
           styles.scrollContent,
           isLandscape && styles.scrollContentLandscape
         ]}
-        showsVerticalScrollIndicator={false}
+        showsVerticalScrollIndicator={true}
       >
         {/* Event Configuration Section */}
         <Card style={[
@@ -1261,7 +1260,7 @@ const SettingsScreen = ({ navigation }) => {
           </View>
         </Card>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -1269,9 +1268,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: styleTokens.colors.background,
+    overflow: 'hidden',
   },
   scrollView: {
     flex: 1,
+    overflow: 'scroll',
   },
   scrollContent: {
     padding: scale(24),
