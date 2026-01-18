@@ -4,7 +4,7 @@
     "slug": "velox-1-race-roulette-app",
     "version": "1.0.0",
     "orientation": "default",
-    "icon": null ,
+    "icon": null,
     "userInterfaceStyle": "light",
     "splash": {
       "image": null,
@@ -19,17 +19,21 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": null ,
+        "foregroundImage": null,
         "backgroundColor": "#2c3e50"
       }
     },
     "web": {
-      "favicon": null,
       "bundler": "metro"
     },
     "plugins": [
       "expo-font",
       "expo-asset"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "7d2243a4-440d-4146-aa30-6a1e5545c605"
+      }
+    }
   }
 }
