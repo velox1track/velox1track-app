@@ -36,6 +36,7 @@ const RaceRouletteScreen = ({ navigation }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [assignments, setAssignments] = useState([]);
   const [teams, setTeams] = useState([]);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   // Load saved state on component mount
   useEffect(() => {
@@ -209,29 +210,34 @@ const RaceRouletteScreen = ({ navigation }) => {
   };
 
   const resetSequence = () => {
-    Alert.alert(
-      'Reset Sequence',
-      'This will clear the current event sequence, all recorded scores, and all athlete assignments. You can then generate a new sequence.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Reset', 
-          style: 'destructive',
-          onPress: async () => {
-            // Clear event results and athlete assignments
-            await AsyncStorage.removeItem('eventResults');
-            await clearAllAssignments();
-            
-            setEventSequence([]);
-            setRevealedIndex(0);
-            setAssignments([]);
-            await saveState([], 0);
-            
-            Alert.alert('Reset Complete', 'You can now generate a new event sequence. All previous assignments have been cleared.');
-          }
-        }
-      ]
-    );
+    console.log('Reset button clicked');
+    setShowResetConfirm(true);
+  };
+
+  const handleResetConfirm = async () => {
+    try {
+      console.log('Resetting sequence...');
+      setShowResetConfirm(false);
+      
+      // Clear event results and athlete assignments
+      await AsyncStorage.removeItem('eventResults');
+      await clearAllAssignments();
+      
+      setEventSequence([]);
+      setRevealedIndex(0);
+      setAssignments([]);
+      await saveState([], 0);
+      
+      console.log('Reset complete');
+    } catch (error) {
+      console.error('Error resetting sequence:', error);
+      alert('Error: Failed to reset sequence. Please try again.');
+    }
+  };
+
+  const handleResetCancel = () => {
+    console.log('Reset cancelled');
+    setShowResetConfirm(false);
   };
 
   const getNextEvent = () => {
@@ -413,11 +419,15 @@ const RaceRouletteScreen = ({ navigation }) => {
               ]}>
                 Event Sequence
               </MobileH2>
-              <ButtonSecondary 
-                style={styles.resetButton} 
-                onPress={resetSequence}
-                title="Reset"
-              />
+              <Pressable 
+                style={styles.resetButton}
+                onPress={() => {
+                  console.log('Reset button pressed!');
+                  resetSequence();
+                }}
+              >
+                <Text style={styles.resetButtonText}>Reset</Text>
+              </Pressable>
             </View>
             
             <View style={[styles.sequenceGrid, isLandscape && styles.sequenceGridLandscape]}>
@@ -436,6 +446,26 @@ const RaceRouletteScreen = ({ navigation }) => {
           </Card>
         )}
       </ScrollView>
+
+      {/* Reset Confirmation Modal */}
+      {showResetConfirm && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <MobileH2 style={styles.modalTitle}>Reset Sequence</MobileH2>
+            <MobileBody style={styles.modalMessage}>
+              This will clear the current event sequence, all recorded scores, and all athlete assignments. You can then generate a new sequence.
+            </MobileBody>
+            <View style={styles.modalButtons}>
+              <Pressable style={styles.modalButtonCancel} onPress={handleResetCancel}>
+                <Text style={styles.modalButtonTextCancel}>Cancel</Text>
+              </Pressable>
+              <Pressable style={styles.modalButtonConfirm} onPress={handleResetConfirm}>
+                <Text style={styles.modalButtonTextConfirm}>Reset</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      )}
     </View>
   );
 };
@@ -756,6 +786,20 @@ const styles = StyleSheet.create({
   },
   resetButton: {
     minWidth: scale(80),
+    backgroundColor: styleTokens.colors.primaryDark,
+    paddingVertical: scale(12),
+    paddingHorizontal: scale(20),
+    borderRadius: scale(8),
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: scale(48),
+  },
+  resetButtonText: {
+    color: styleTokens.colors.white,
+    fontSize: scale(14),
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: scale(1),
   },
   relayPositionsGroup: {
     marginBottom: scale(16),
@@ -857,6 +901,71 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.6,
     shadowRadius: scale(4),
+  },
+  modalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  modalContent: {
+    backgroundColor: styleTokens.colors.surface,
+    borderRadius: scale(12),
+    padding: scale(24),
+    width: '90%',
+    maxWidth: scale(400),
+    ...styleTokens.shadows.lg,
+  },
+  modalTitle: {
+    color: styleTokens.colors.textPrimary,
+    marginBottom: scale(16),
+    textAlign: 'center',
+  },
+  modalMessage: {
+    color: styleTokens.colors.textSecondary,
+    marginBottom: scale(24),
+    textAlign: 'center',
+    lineHeight: scale(20),
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: scale(12),
+  },
+  modalButtonCancel: {
+    flex: 1,
+    backgroundColor: styleTokens.colors.border,
+    paddingVertical: scale(12),
+    paddingHorizontal: scale(20),
+    borderRadius: scale(8),
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: scale(48),
+  },
+  modalButtonConfirm: {
+    flex: 1,
+    backgroundColor: styleTokens.colors.error || '#e74c3c',
+    paddingVertical: scale(12),
+    paddingHorizontal: scale(20),
+    borderRadius: scale(8),
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: scale(48),
+  },
+  modalButtonTextCancel: {
+    color: styleTokens.colors.textPrimary,
+    fontSize: scale(16),
+    fontWeight: '600',
+  },
+  modalButtonTextConfirm: {
+    color: styleTokens.colors.white,
+    fontSize: scale(16),
+    fontWeight: '600',
   },
 });
 
