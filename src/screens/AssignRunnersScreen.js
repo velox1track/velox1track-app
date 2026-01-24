@@ -4,7 +4,8 @@ import {
   StyleSheet, 
   ScrollView, 
   Alert,
-  Pressable
+  Pressable,
+  Text
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MobileH1, MobileH2, MobileBody, MobileCaption } from '../components/Typography';
@@ -31,11 +32,16 @@ const AssignRunnersScreen = ({ route, navigation }) => {
   const [usedAthleteIds, setUsedAthleteIds] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [showIncompleteConfirm, setShowIncompleteConfirm] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
   const isRelay = isRelayEvent(eventName);
   const requiredAthletes = isRelay ? getRelayAthleteCount(eventName) : 1;
 
   useEffect(() => {
+    console.log('AssignRunnersScreen mounted');
+    console.log('showCancelConfirm:', showCancelConfirm);
+    console.log('showIncompleteConfirm:', showIncompleteConfirm);
     loadData();
   }, []);
 
@@ -191,26 +197,25 @@ const AssignRunnersScreen = ({ route, navigation }) => {
   };
 
   const handleSave = async () => {
+    console.log('handleSave called');
     const incompleteTeams = getIncompleteTeams();
+    console.log('Incomplete teams:', incompleteTeams);
     
     if (incompleteTeams.length > 0) {
-      Alert.alert(
-        'Incomplete Assignments',
-        `The following teams need ${requiredAthletes} ${requiredAthletes === 1 ? 'athlete' : 'athletes'} assigned:\n\n${incompleteTeams.map(t => `• ${t.name}`).join('\n')}\n\nContinue anyway?`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Save Anyway', onPress: saveAssignments }
-        ]
-      );
+      console.log('Showing incomplete confirmation modal');
+      setShowIncompleteConfirm(true);
       return;
     }
     
+    console.log('Calling saveAssignments');
     saveAssignments();
   };
 
   const saveAssignments = async () => {
+    console.log('saveAssignments called');
     try {
       setIsSaving(true);
+      console.log('isSaving set to true');
       
       // Convert selections to assignment format, including "not running" teams
       const teamAssignments = teams.map(team => ({
@@ -218,7 +223,10 @@ const AssignRunnersScreen = ({ route, navigation }) => {
         athleteIds: teamSelections[team.id] || []
       })).filter(ta => ta.athleteIds.length > 0); // Save teams with athletes OR "not running" marker
       
+      console.log('Team assignments:', teamAssignments);
+      
       // Save assignments
+      console.log('Calling setAssignmentForEvent...');
       const updatedAssignments = await setAssignmentForEvent(
         assignments, 
         eventIndex, 
@@ -227,36 +235,52 @@ const AssignRunnersScreen = ({ route, navigation }) => {
         teamAssignments
       );
       
+      console.log('setAssignmentForEvent completed');
+      
       if (updatedAssignments === assignments) {
-        Alert.alert('Error', 'Failed to save assignments. Please try again.');
+        console.log('Failed to save - assignments unchanged');
+        alert('Error: Failed to save assignments. Please try again.');
         return;
       }
       
-      Alert.alert(
-        'Success', 
-        `Athletes assigned to ${eventName}!`,
-        [
-          { text: 'OK', onPress: () => navigation.goBack() }
-        ]
-      );
+      // Successfully saved - navigate back to Race Roulette screen
+      console.log('Assignments saved successfully, navigating back...');
+      
+      // Use a small delay to ensure state is saved before navigation
+      setTimeout(() => {
+        console.log('Navigating to RaceRoulette');
+        navigation.navigate('RaceRoulette');
+      }, 100);
       
     } catch (error) {
       console.log('Error saving assignments:', error);
-      Alert.alert('Error', 'Failed to save assignments. Please try again.');
+      alert('Error: Failed to save assignments. Please try again.');
     } finally {
+      console.log('Setting isSaving to false');
       setIsSaving(false);
     }
   };
 
   const handleCancel = () => {
-    Alert.alert(
-      'Cancel Assignment',
-      'Are you sure you want to cancel? Any unsaved changes will be lost.',
-      [
-        { text: 'Stay', style: 'cancel' },
-        { text: 'Cancel', style: 'destructive', onPress: () => navigation.goBack() }
-      ]
-    );
+    setShowCancelConfirm(true);
+  };
+
+  const handleCancelConfirm = () => {
+    setShowCancelConfirm(false);
+    navigation.goBack();
+  };
+
+  const handleCancelStay = () => {
+    setShowCancelConfirm(false);
+  };
+
+  const handleIncompleteSaveAnyway = () => {
+    setShowIncompleteConfirm(false);
+    saveAssignments();
+  };
+
+  const handleIncompleteCancel = () => {
+    setShowIncompleteConfirm(false);
   };
 
   if (isLoading) {
@@ -444,17 +468,74 @@ const AssignRunnersScreen = ({ route, navigation }) => {
           >
             Cancel
           </ButtonSecondary>
-          <ButtonPrimary 
-            onPress={handleSave} 
-            disabled={!canSave() || isSaving}
-            style={styles.saveButton}
-            textStyle={styles.buttonText}
+          <Pressable 
+            onPress={() => {
+              console.log('=== SAVE BUTTON CLICKED ===');
+              console.log('canSave():', canSave());
+              console.log('isSaving:', isSaving);
+              console.log('teams:', teams.length);
+              console.log('teamSelections:', teamSelections);
+              if (!canSave() || isSaving) {
+                console.log('Button check failed - would be disabled');
+                // Still allow click for debugging
+              }
+              handleSave();
+            }} 
+            style={[
+              styles.saveButton,
+              styles.saveButtonStyle,
+              (!canSave() || isSaving) && styles.saveButtonDisabled
+            ]}
           >
-            {isSaving ? 'Saving...' : 'Save'}
-          </ButtonPrimary>
+            <Text style={styles.saveButtonText}>
+              {isSaving ? 'Saving...' : 'Save'}
+            </Text>
+          </Pressable>
         </View>
 
       </ScrollView>
+
+      {/* Cancel Confirmation Modal */}
+      {showCancelConfirm && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <MobileH2 style={styles.modalTitle}>Cancel Assignment</MobileH2>
+            <MobileBody style={styles.modalMessage}>
+              Are you sure you want to cancel? Any unsaved changes will be lost.
+            </MobileBody>
+            <View style={styles.modalButtons}>
+              <Pressable style={styles.modalButtonCancel} onPress={handleCancelStay}>
+                <Text style={styles.modalButtonTextCancel}>Stay</Text>
+              </Pressable>
+              <Pressable style={styles.modalButtonConfirm} onPress={handleCancelConfirm}>
+                <Text style={styles.modalButtonTextConfirm}>Cancel</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/* Incomplete Assignments Confirmation Modal */}
+      {showIncompleteConfirm && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <MobileH2 style={styles.modalTitle}>Incomplete Assignments</MobileH2>
+            <MobileBody style={styles.modalMessage}>
+              The following teams need {requiredAthletes} {requiredAthletes === 1 ? 'athlete' : 'athletes'} assigned:{'\n\n'}
+              {getIncompleteTeams().map(t => `• ${t.name}`).join('\n')}{'\n\n'}
+              Continue anyway?
+            </MobileBody>
+            <View style={styles.modalButtons}>
+              <Pressable style={styles.modalButtonCancel} onPress={handleIncompleteCancel}>
+                <Text style={styles.modalButtonTextCancel}>Cancel</Text>
+              </Pressable>
+              <Pressable style={styles.modalButtonConfirm} onPress={handleIncompleteSaveAnyway}>
+                <Text style={styles.modalButtonTextConfirm}>Save Anyway</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      )}
     </View>
   );
 };
@@ -693,8 +774,95 @@ const styles = StyleSheet.create({
   saveButton: {
     flex: 2,
   },
+  saveButtonStyle: {
+    backgroundColor: styleTokens.colors.primary,
+    paddingVertical: scale(16),
+    paddingHorizontal: scale(32),
+    borderRadius: scale(4),
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: scale(48),
+    borderWidth: 3,
+    borderColor: '#ff0000', // Bright red border for debugging
+  },
+  saveButtonDisabled: {
+    opacity: 0.6,
+    backgroundColor: styleTokens.colors.textMuted,
+  },
+  saveButtonText: {
+    color: styleTokens.colors.white,
+    fontSize: scale(16),
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: scale(1),
+  },
   buttonText: {
     fontSize: scale(15), // Consistent font size for both buttons
+  },
+  modalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  modalContent: {
+    backgroundColor: styleTokens.colors.surface,
+    borderRadius: scale(12),
+    padding: scale(24),
+    width: '90%',
+    maxWidth: scale(400),
+    ...styleTokens.shadows.lg,
+  },
+  modalTitle: {
+    color: styleTokens.colors.textPrimary,
+    marginBottom: scale(16),
+    textAlign: 'center',
+  },
+  modalMessage: {
+    color: styleTokens.colors.textSecondary,
+    marginBottom: scale(24),
+    textAlign: 'center',
+    lineHeight: scale(20),
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: scale(12),
+  },
+  modalButtonCancel: {
+    flex: 1,
+    backgroundColor: styleTokens.colors.border,
+    paddingVertical: scale(12),
+    paddingHorizontal: scale(20),
+    borderRadius: scale(8),
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: scale(48),
+  },
+  modalButtonConfirm: {
+    flex: 1,
+    backgroundColor: styleTokens.colors.error || '#e74c3c',
+    paddingVertical: scale(12),
+    paddingHorizontal: scale(20),
+    borderRadius: scale(8),
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: scale(48),
+  },
+  modalButtonTextCancel: {
+    color: styleTokens.colors.textPrimary,
+    fontSize: scale(16),
+    fontWeight: '600',
+  },
+  modalButtonTextConfirm: {
+    color: styleTokens.colors.white,
+    fontSize: scale(16),
+    fontWeight: '600',
   },
 });
 
