@@ -3,7 +3,9 @@ import {
   View, 
   StyleSheet, 
   ScrollView, 
-  Alert
+  Alert,
+  Pressable,
+  Text
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import AthleteForm from '../components/AthleteForm';
@@ -17,6 +19,9 @@ import { scale } from '../utils/scale';
 const TeamBuilderScreen = () => {
   const [athletes, setAthletes] = useState([]);
   const [showCSVImporter, setShowCSVImporter] = useState(false);
+  const [showClearAllConfirm, setShowClearAllConfirm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [athleteToDelete, setAthleteToDelete] = useState(null);
 
   // Load saved athletes on component mount
   useEffect(() => {
@@ -56,40 +61,41 @@ const TeamBuilderScreen = () => {
   };
 
   const deleteAthlete = (athleteId) => {
-    Alert.alert(
-      'Delete Athlete',
-      'Are you sure you want to delete this athlete?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Delete', 
-          style: 'destructive',
-          onPress: () => {
-            const newAthletes = athletes.filter(a => a.id !== athleteId);
-            setAthletes(newAthletes);
-            saveAthletes(newAthletes);
-          }
-        }
-      ]
-    );
+    console.log('Delete athlete clicked:', athleteId);
+    setAthleteToDelete(athleteId);
+    setShowDeleteConfirm(true);
+  };
+
+  const handleDeleteConfirm = () => {
+    console.log('Confirming delete for athlete:', athleteToDelete);
+    const newAthletes = athletes.filter(a => a.id !== athleteToDelete);
+    setAthletes(newAthletes);
+    saveAthletes(newAthletes);
+    setShowDeleteConfirm(false);
+    setAthleteToDelete(null);
+  };
+
+  const handleDeleteCancel = () => {
+    console.log('Delete cancelled');
+    setShowDeleteConfirm(false);
+    setAthleteToDelete(null);
   };
 
   const clearAllAthletes = () => {
-    Alert.alert(
-      'Clear All Athletes',
-      'Are you sure you want to delete all athletes? This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Clear All', 
-          style: 'destructive',
-          onPress: () => {
-            setAthletes([]);
-            saveAthletes([]);
-          }
-        }
-      ]
-    );
+    console.log('Clear all athletes clicked');
+    setShowClearAllConfirm(true);
+  };
+
+  const handleClearAllConfirm = () => {
+    console.log('Confirming clear all athletes');
+    setAthletes([]);
+    saveAthletes([]);
+    setShowClearAllConfirm(false);
+  };
+
+  const handleClearAllCancel = () => {
+    console.log('Clear all cancelled');
+    setShowClearAllConfirm(false);
   };
 
   const getTierCount = (tier) => {
@@ -190,6 +196,46 @@ const TeamBuilderScreen = () => {
           )}
         </Card>
       </ScrollView>
+
+      {/* Clear All Confirmation Modal */}
+      {showClearAllConfirm && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <MobileH2 style={styles.modalTitle}>Clear All Athletes</MobileH2>
+            <MobileBody style={styles.modalMessage}>
+              Are you sure you want to delete all athletes? This action cannot be undone.
+            </MobileBody>
+            <View style={styles.modalButtons}>
+              <Pressable style={styles.modalButtonCancel} onPress={handleClearAllCancel}>
+                <Text style={styles.modalButtonTextCancel}>Cancel</Text>
+              </Pressable>
+              <Pressable style={styles.modalButtonConfirm} onPress={handleClearAllConfirm}>
+                <Text style={styles.modalButtonTextConfirm}>Clear All</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/* Delete Athlete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <MobileH2 style={styles.modalTitle}>Delete Athlete</MobileH2>
+            <MobileBody style={styles.modalMessage}>
+              Are you sure you want to delete this athlete?
+            </MobileBody>
+            <View style={styles.modalButtons}>
+              <Pressable style={styles.modalButtonCancel} onPress={handleDeleteCancel}>
+                <Text style={styles.modalButtonTextCancel}>Cancel</Text>
+              </Pressable>
+              <Pressable style={styles.modalButtonConfirm} onPress={handleDeleteConfirm}>
+                <Text style={styles.modalButtonTextConfirm}>Delete</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      )}
     </View>
   );
 };
@@ -391,6 +437,71 @@ const styles = StyleSheet.create({
     color: styleTokens.colors.white,
     fontSize: scale(14),
     fontWeight: 'bold',
+  },
+  modalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  modalContent: {
+    backgroundColor: styleTokens.colors.surface,
+    borderRadius: scale(12),
+    padding: scale(24),
+    width: '90%',
+    maxWidth: scale(400),
+    ...styleTokens.shadows.lg,
+  },
+  modalTitle: {
+    color: styleTokens.colors.textPrimary,
+    marginBottom: scale(16),
+    textAlign: 'center',
+  },
+  modalMessage: {
+    color: styleTokens.colors.textSecondary,
+    marginBottom: scale(24),
+    textAlign: 'center',
+    lineHeight: scale(20),
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: scale(12),
+  },
+  modalButtonCancel: {
+    flex: 1,
+    backgroundColor: styleTokens.colors.border,
+    paddingVertical: scale(12),
+    paddingHorizontal: scale(20),
+    borderRadius: scale(8),
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: scale(48),
+  },
+  modalButtonConfirm: {
+    flex: 1,
+    backgroundColor: styleTokens.colors.error || '#e74c3c',
+    paddingVertical: scale(12),
+    paddingHorizontal: scale(20),
+    borderRadius: scale(8),
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: scale(48),
+  },
+  modalButtonTextCancel: {
+    color: styleTokens.colors.textPrimary,
+    fontSize: scale(16),
+    fontWeight: '600',
+  },
+  modalButtonTextConfirm: {
+    color: styleTokens.colors.white,
+    fontSize: scale(16),
+    fontWeight: '600',
   },
 });
 
