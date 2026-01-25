@@ -782,8 +782,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: scale(48),
-    borderWidth: 3,
-    borderColor: '#ff0000', // Bright red border for debugging
   },
   saveButtonDisabled: {
     opacity: 0.6,

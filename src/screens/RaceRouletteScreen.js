@@ -668,6 +668,7 @@ const styles = StyleSheet.create({
     fontSize: scale(8), // Match website font size
     fontWeight: 'bold',
     letterSpacing: scale(1.2),
+    fontFamily: styleTokens.typography.fonts.roboto || 'System',
   },
   mainDisplay: {
     alignItems: 'center',
@@ -682,6 +683,7 @@ const styles = StyleSheet.create({
     fontSize: scale(28),
     fontWeight: 'bold',
     letterSpacing: scale(2),
+    fontFamily: styleTokens.typography.fonts.roboto || 'System',
   },
   eventNumber: {
     color: '#64E2D3',
@@ -689,6 +691,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textAlign: 'center',
     letterSpacing: scale(1),
+    fontFamily: styleTokens.typography.fonts.roboto || 'System',
   },
   screenFooter: {
     marginTop: scale(16),
@@ -703,6 +706,7 @@ const styles = StyleSheet.create({
     fontSize: scale(8), // Match website font size
     fontWeight: 'bold',
     letterSpacing: scale(0.8),
+    fontFamily: styleTokens.typography.fonts.roboto || 'System',
   },
   revealButton: {
     minWidth: scale(160),
@@ -726,6 +730,7 @@ const styles = StyleSheet.create({
     fontSize: scale(16),
     fontWeight: 'bold',
     letterSpacing: scale(1),
+    fontFamily: styleTokens.typography.fonts.roboto || 'System',
   },
   generateButton: {
     marginTop: scale(16),
@@ -800,6 +805,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: scale(1),
+    fontFamily: styleTokens.typography.fonts.roboto || 'System',
   },
   relayPositionsGroup: {
     marginBottom: scale(16),
