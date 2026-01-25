@@ -8,7 +8,8 @@ import {
   useWindowDimensions,
   TouchableOpacity,
   Animated,
-  Pressable
+  Pressable,
+  Modal
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import eventBus from '../lib/eventBus';
@@ -35,6 +36,15 @@ const SettingsScreen = ({ navigation }) => {
   const [selectedCategory, setSelectedCategory] = useState('shortSprints');
   const [eventPool, setEventPool] = useState(getDefaultEventPool());
   const [showEventConfig, setShowEventConfig] = useState(false);
+
+  // Confirmation modals
+  const [showResetDefaultsConfirm, setShowResetDefaultsConfirm] = useState(false);
+  const [showClearAllDataConfirm, setShowClearAllDataConfirm] = useState(false);
+  const [showClearSpecificConfirm, setShowClearSpecificConfirm] = useState(false);
+  const [clearSpecificType, setClearSpecificType] = useState(null);
+  const [showExportDataInfo, setShowExportDataInfo] = useState(false);
+  const [exportDataInfo, setExportDataInfo] = useState(null);
+  const [showResetProgressConfirm, setShowResetProgressConfirm] = useState(false);
 
   // Race Roulette sequence settings
   const [rouletteSettings, setRouletteSettings] = useState({ totalEvents: 5, numRelays: 1, relayPositions: [] });
@@ -295,34 +305,34 @@ const SettingsScreen = ({ navigation }) => {
   };
 
   const resetToDefaults = () => {
-    Alert.alert(
-      'Reset Event Pool',
-      'This will reset all events to their default enabled/disabled state. Continue?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Reset to Defaults', 
-          onPress: () => {
-            const defaultPool = getDefaultEventPool();
-            saveEventPool(defaultPool);
-            
-            // Reset all animations to their default state
-            Object.keys(defaultPool).forEach(category => {
-              defaultPool[category].forEach(event => {
-                const animation = getToggleAnimation(category, event.name);
-                Animated.timing(animation, {
-                  toValue: event.enabled ? 1 : 0,
-                  duration: 300,
-                  useNativeDriver: false,
-                }).start();
-              });
-            });
-            
-            Alert.alert('Success', 'Event pool reset to defaults.');
-          }
-        }
-      ]
-    );
+    console.log('Reset to defaults button pressed');
+    setShowResetDefaultsConfirm(true);
+  };
+
+  const handleResetDefaultsConfirm = () => {
+    console.log('Resetting event pool to defaults');
+    const defaultPool = getDefaultEventPool();
+    saveEventPool(defaultPool);
+    
+    // Reset all animations to their default state
+    Object.keys(defaultPool).forEach(category => {
+      defaultPool[category].forEach(event => {
+        const animation = getToggleAnimation(category, event.name);
+        Animated.timing(animation, {
+          toValue: event.enabled ? 1 : 0,
+          duration: 300,
+          useNativeDriver: false,
+        }).start();
+      });
+    });
+    
+    setShowResetDefaultsConfirm(false);
+    console.log('Event pool reset to defaults successfully');
+  };
+
+  const handleResetDefaultsCancel = () => {
+    console.log('Reset to defaults cancelled');
+    setShowResetDefaultsConfirm(false);
   };
 
   const refreshToLatestDefaults = () => {
@@ -544,84 +554,86 @@ const SettingsScreen = ({ navigation }) => {
   const stats = getEventPoolStats();
 
   const clearAllData = () => {
-    Alert.alert(
-      'Clear All Data',
-      'This will permanently delete all athletes, teams, event sequences, and results. This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Clear All Data', 
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await AsyncStorage.multiRemove([
-                'athletes',
-                'teams', 
-                'eventSequence',
-                'revealedIndex',
-                'eventResults'
-              ]);
-              
-              setDataStats({
-                athletes: 0,
-                teams: 0,
-                eventSequence: 0,
-                eventResults: 0
-              });
-              
-              Alert.alert('Success', 'All data has been cleared.');
-            } catch (error) {
-              Alert.alert('Error', 'Failed to clear data.');
-            }
-          }
-        }
-      ]
-    );
+    console.log('Clear all data button pressed');
+    setShowClearAllDataConfirm(true);
+  };
+
+  const handleClearAllDataConfirm = async () => {
+    console.log('Clearing all data');
+    try {
+      await AsyncStorage.multiRemove([
+        'athletes',
+        'teams', 
+        'eventSequence',
+        'revealedIndex',
+        'eventResults'
+      ]);
+      
+      setDataStats({
+        athletes: 0,
+        teams: 0,
+        eventSequence: 0,
+        eventResults: 0
+      });
+      
+      setShowClearAllDataConfirm(false);
+      console.log('All data cleared successfully');
+    } catch (error) {
+      console.error('Error clearing data:', error);
+      setShowClearAllDataConfirm(false);
+    }
+  };
+
+  const handleClearAllDataCancel = () => {
+    console.log('Clear all data cancelled');
+    setShowClearAllDataConfirm(false);
   };
 
   const clearSpecificData = (dataType, key) => {
-    const dataNames = {
-      athletes: 'Athletes',
-      teams: 'Teams',
-      eventSequence: 'Event Sequence',
-      eventResults: 'Event Results'
-    };
+    console.log(`Clear specific data button pressed: ${dataType}`);
+    setClearSpecificType({ dataType, key });
+    setShowClearSpecificConfirm(true);
+  };
 
-    Alert.alert(
-      `Clear ${dataNames[dataType]}`,
-      `This will permanently delete all ${dataNames[dataType].toLowerCase()}. This action cannot be undone.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: `Clear ${dataNames[dataType]}`, 
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await AsyncStorage.removeItem(key);
-              
-              setDataStats(prev => ({
-                ...prev,
-                [dataType]: 0
-              }));
-              
-              Alert.alert('Success', `${dataNames[dataType]} have been cleared.`);
-            } catch (error) {
-              Alert.alert('Error', `Failed to clear ${dataNames[dataType].toLowerCase()}.`);
-            }
-          }
-        }
-      ]
-    );
+  const handleClearSpecificConfirm = async () => {
+    if (!clearSpecificType) return;
+    
+    const { dataType, key } = clearSpecificType;
+    console.log(`Clearing ${dataType} data`);
+    
+    try {
+      await AsyncStorage.removeItem(key);
+      
+      setDataStats(prev => ({
+        ...prev,
+        [dataType]: 0
+      }));
+      
+      setShowClearSpecificConfirm(false);
+      setClearSpecificType(null);
+      console.log(`${dataType} cleared successfully`);
+    } catch (error) {
+      console.error(`Error clearing ${dataType}:`, error);
+      setShowClearSpecificConfirm(false);
+      setClearSpecificType(null);
+    }
+  };
+
+  const handleClearSpecificCancel = () => {
+    console.log('Clear specific data cancelled');
+    setShowClearSpecificConfirm(false);
+    setClearSpecificType(null);
   };
 
   const exportData = async () => {
+    console.log('Export data button pressed');
     try {
       const athletes = await AsyncStorage.getItem('athletes');
       const teams = await AsyncStorage.getItem('teams');
       const eventSequence = await AsyncStorage.getItem('eventSequence');
       const eventResults = await AsyncStorage.getItem('eventResults');
       
-      const exportData = {
+      const data = {
         athletes: athletes ? JSON.parse(athletes) : [],
         teams: teams ? JSON.parse(teams) : [],
         eventSequence: eventSequence ? JSON.parse(eventSequence) : [],
@@ -630,42 +642,39 @@ const SettingsScreen = ({ navigation }) => {
         appVersion: '1.0.0'
       };
       
-      // In a real app, you would implement actual export functionality
-      // For now, we'll just show the data structure
-      Alert.alert(
-        'Export Data',
-        `Data export prepared:\n\n` +
-        `Athletes: ${exportData.athletes.length}\n` +
-        `Teams: ${exportData.teams.length}\n` +
-        `Events: ${exportData.eventSequence.length}\n` +
-        `Results: ${exportData.eventResults.length}\n\n` +
-        `Export functionality would save this data to a file or cloud storage.`
-      );
+      setExportDataInfo(data);
+      setShowExportDataInfo(true);
+      console.log('Export data prepared');
     } catch (error) {
-      Alert.alert('Error', 'Failed to prepare data export.');
+      console.error('Error preparing data export:', error);
     }
   };
 
+  const handleExportDataClose = () => {
+    setShowExportDataInfo(false);
+    setExportDataInfo(null);
+  };
+
   const resetEventProgress = async () => {
-    Alert.alert(
-      'Reset Event Progress',
-      'This will reset the event sequence progress (revealed events) but keep the sequence itself.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Reset Progress', 
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await AsyncStorage.removeItem('revealedIndex');
-              Alert.alert('Success', 'Event progress has been reset.');
-            } catch (error) {
-              Alert.alert('Error', 'Failed to reset event progress.');
-            }
-          }
-        }
-      ]
-    );
+    console.log('Reset event progress button pressed');
+    setShowResetProgressConfirm(true);
+  };
+
+  const handleResetProgressConfirm = async () => {
+    console.log('Resetting event progress');
+    try {
+      await AsyncStorage.removeItem('revealedIndex');
+      setShowResetProgressConfirm(false);
+      console.log('Event progress reset successfully');
+    } catch (error) {
+      console.error('Error resetting event progress:', error);
+      setShowResetProgressConfirm(false);
+    }
+  };
+
+  const handleResetProgressCancel = () => {
+    console.log('Reset event progress cancelled');
+    setShowResetProgressConfirm(false);
   };
 
   const getCategoryAbbreviation = (category) => {
@@ -1260,6 +1269,145 @@ const SettingsScreen = ({ navigation }) => {
           </View>
         </Card>
       </ScrollView>
+
+      {/* Reset to Defaults Confirmation Modal */}
+      <Modal
+        visible={showResetDefaultsConfirm}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={handleResetDefaultsCancel}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <MobileH2 style={styles.modalTitle}>Reset Event Pool</MobileH2>
+            <MobileBody style={styles.modalMessage}>
+              This will reset all events to their default enabled/disabled state. Continue?
+            </MobileBody>
+            <View style={styles.modalButtons}>
+              <Pressable style={styles.modalButtonCancel} onPress={handleResetDefaultsCancel}>
+                <MobileBody style={styles.modalButtonTextCancel}>Cancel</MobileBody>
+              </Pressable>
+              <Pressable style={styles.modalButtonConfirm} onPress={handleResetDefaultsConfirm}>
+                <MobileBody style={styles.modalButtonText}>Reset to Defaults</MobileBody>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Clear All Data Confirmation Modal */}
+      <Modal
+        visible={showClearAllDataConfirm}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={handleClearAllDataCancel}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <MobileH2 style={styles.modalTitle}>Clear All Data</MobileH2>
+            <MobileBody style={styles.modalMessage}>
+              This will permanently delete all athletes, teams, event sequences, and results. This action cannot be undone.
+            </MobileBody>
+            <View style={styles.modalButtons}>
+              <Pressable style={styles.modalButtonCancel} onPress={handleClearAllDataCancel}>
+                <MobileBody style={styles.modalButtonTextCancel}>Cancel</MobileBody>
+              </Pressable>
+              <Pressable style={[styles.modalButtonConfirm, styles.modalButtonDanger]} onPress={handleClearAllDataConfirm}>
+                <MobileBody style={styles.modalButtonText}>Clear All Data</MobileBody>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Clear Specific Data Confirmation Modal */}
+      <Modal
+        visible={showClearSpecificConfirm}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={handleClearSpecificCancel}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <MobileH2 style={styles.modalTitle}>
+              Clear {clearSpecificType && ({
+                athletes: 'Athletes',
+                teams: 'Teams',
+                eventSequence: 'Event Sequence',
+                eventResults: 'Event Results'
+              })[clearSpecificType.dataType]}
+            </MobileH2>
+            <MobileBody style={styles.modalMessage}>
+              This will permanently delete all {clearSpecificType && ({
+                athletes: 'athletes',
+                teams: 'teams',
+                eventSequence: 'event sequence data',
+                eventResults: 'event results'
+              })[clearSpecificType.dataType]}. This action cannot be undone.
+            </MobileBody>
+            <View style={styles.modalButtons}>
+              <Pressable style={styles.modalButtonCancel} onPress={handleClearSpecificCancel}>
+                <MobileBody style={styles.modalButtonTextCancel}>Cancel</MobileBody>
+              </Pressable>
+              <Pressable style={[styles.modalButtonConfirm, styles.modalButtonDanger]} onPress={handleClearSpecificConfirm}>
+                <MobileBody style={styles.modalButtonText}>Clear Data</MobileBody>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Export Data Info Modal */}
+      <Modal
+        visible={showExportDataInfo}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={handleExportDataClose}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <MobileH2 style={styles.modalTitle}>Export Data</MobileH2>
+            <MobileBody style={styles.modalMessage}>
+              Data export prepared:{'\n\n'}
+              Athletes: {exportDataInfo?.athletes.length || 0}{'\n'}
+              Teams: {exportDataInfo?.teams.length || 0}{'\n'}
+              Events: {exportDataInfo?.eventSequence.length || 0}{'\n'}
+              Results: {exportDataInfo?.eventResults.length || 0}{'\n\n'}
+              Export functionality would save this data to a file or cloud storage.
+            </MobileBody>
+            <View style={styles.modalButtons}>
+              <Pressable style={[styles.modalButtonConfirm, { flex: 1 }]} onPress={handleExportDataClose}>
+                <MobileBody style={styles.modalButtonText}>OK</MobileBody>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Reset Event Progress Confirmation Modal */}
+      <Modal
+        visible={showResetProgressConfirm}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={handleResetProgressCancel}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <MobileH2 style={styles.modalTitle}>Reset Event Progress</MobileH2>
+            <MobileBody style={styles.modalMessage}>
+              This will reset the event sequence progress (revealed events) but keep the sequence itself.
+            </MobileBody>
+            <View style={styles.modalButtons}>
+              <Pressable style={styles.modalButtonCancel} onPress={handleResetProgressCancel}>
+                <MobileBody style={styles.modalButtonTextCancel}>Cancel</MobileBody>
+              </Pressable>
+              <Pressable style={[styles.modalButtonConfirm, styles.modalButtonDanger]} onPress={handleResetProgressConfirm}>
+                <MobileBody style={styles.modalButtonText}>Reset Progress</MobileBody>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -2065,6 +2213,70 @@ const styles = StyleSheet.create({
     marginTop: scale(12),
     alignItems: 'center',
     justifyContent: 'flex-end',
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: scale(20),
+  },
+  modalContent: {
+    backgroundColor: styleTokens.components.card.backgroundColor,
+    borderRadius: scale(12),
+    padding: scale(24),
+    width: '100%',
+    maxWidth: scale(400),
+    borderWidth: styleTokens.components.card.borderWidth,
+    borderColor: styleTokens.components.card.borderColor,
+    ...styleTokens.shadows.lg,
+  },
+  modalTitle: {
+    color: styleTokens.colors.textPrimary,
+    marginBottom: scale(16),
+    textAlign: 'center',
+    fontWeight: '700',
+  },
+  modalMessage: {
+    color: styleTokens.colors.textSecondary,
+    marginBottom: scale(24),
+    textAlign: 'center',
+    lineHeight: scale(22),
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: scale(12),
+  },
+  modalButtonCancel: {
+    flex: 1,
+    backgroundColor: styleTokens.colors.backgroundLight,
+    paddingVertical: scale(12),
+    paddingHorizontal: scale(20),
+    borderRadius: scale(8),
+    borderWidth: 1,
+    borderColor: styleTokens.colors.border,
+    alignItems: 'center',
+  },
+  modalButtonConfirm: {
+    flex: 1,
+    backgroundColor: styleTokens.colors.primary,
+    paddingVertical: scale(12),
+    paddingHorizontal: scale(20),
+    borderRadius: scale(8),
+    alignItems: 'center',
+  },
+  modalButtonDanger: {
+    backgroundColor: '#ff6b6b',
+  },
+  modalButtonText: {
+    color: styleTokens.colors.white,
+    fontWeight: '600',
+  },
+  modalButtonTextCancel: {
+    color: styleTokens.colors.textPrimary,
+    fontWeight: '600',
   },
 });
 
