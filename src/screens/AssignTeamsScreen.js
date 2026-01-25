@@ -385,59 +385,65 @@ const AssignTeamsScreen = () => {
               Edit Team
             </MobileH2>
             
-            {/* Team Name Section */}
-            <View style={styles.editSection}>
-              <MobileBody style={styles.sectionLabel}>Team Name</MobileBody>
-              <Input
-                value={editedTeamName}
-                onChangeText={setEditedTeamName}
-                placeholder="Enter team name"
-                style={styles.teamNameInput}
-              />
-            </View>
+            <ScrollView 
+              style={styles.modalScrollView}
+              contentContainerStyle={styles.modalScrollContent}
+              showsVerticalScrollIndicator={true}
+            >
+              {/* Team Name Section */}
+              <View style={styles.editSection}>
+                <MobileBody style={styles.sectionLabel}>Team Name</MobileBody>
+                <Input
+                  value={editedTeamName}
+                  onChangeText={setEditedTeamName}
+                  placeholder="Enter team name"
+                  style={styles.teamNameInput}
+                />
+              </View>
 
-            {/* Team Color Section */}
-            <View style={styles.editSection}>
-              <MobileBody style={styles.sectionLabel}>Team Color</MobileBody>
-              <ScrollView style={styles.colorListContainer} showsVerticalScrollIndicator={false}>
-                {availableColors.map((color, index) => {
-                  const usedColors = getUsedColors();
-                  const isUsed = usedColors.includes(color) && selectedTeamForEdit?.color !== color;
-                  const isSelected = editedTeamColor === color;
-                  const colorName = getColorName(color);
-                  
-                  return (
-                    <Pressable
-                      key={index}
-                      style={[
-                        styles.colorListItem,
-                        isSelected && styles.colorListItemSelected,
-                        isUsed && styles.colorListItemDisabled
-                      ]}
-                      onPress={() => !isUsed && selectTeamColor(color)}
-                      disabled={isUsed}
-                    >
-                      <View style={styles.colorListItemContent}>
-                        <View style={[styles.colorPreview, { backgroundColor: color }]} />
-                        <MobileBody style={[
-                          styles.colorName,
-                          isSelected && styles.colorNameSelected,
-                          isUsed && styles.colorNameDisabled
-                        ]}>
-                          {colorName}
-                        </MobileBody>
-                        {isSelected && (
-                          <MobileBody style={styles.selectedIndicator}>✓</MobileBody>
-                        )}
-                        {isUsed && (
-                          <MobileCaption style={styles.usedIndicator}>In Use</MobileCaption>
-                        )}
-                      </View>
-                    </Pressable>
-                  );
-                })}
-              </ScrollView>
-            </View>
+              {/* Team Color Section */}
+              <View style={styles.editSection}>
+                <MobileBody style={styles.sectionLabel}>Team Color</MobileBody>
+                <View style={styles.colorList}>
+                  {availableColors.map((color, index) => {
+                    const usedColors = getUsedColors();
+                    const isUsed = usedColors.includes(color) && selectedTeamForEdit?.color !== color;
+                    const isSelected = editedTeamColor === color;
+                    const colorName = getColorName(color);
+                    
+                    return (
+                      <Pressable
+                        key={index}
+                        style={[
+                          styles.colorListItem,
+                          isSelected && styles.colorListItemSelected,
+                          isUsed && styles.colorListItemDisabled
+                        ]}
+                        onPress={() => !isUsed && selectTeamColor(color)}
+                        disabled={isUsed}
+                      >
+                        <View style={styles.colorListItemContent}>
+                          <View style={[styles.colorPreview, { backgroundColor: color }]} />
+                          <MobileBody style={[
+                            styles.colorName,
+                            isSelected && styles.colorNameSelected,
+                            isUsed && styles.colorNameDisabled
+                          ]}>
+                            {colorName}
+                          </MobileBody>
+                          {isSelected && (
+                            <MobileBody style={styles.selectedIndicator}>✓</MobileBody>
+                          )}
+                          {isUsed && (
+                            <MobileCaption style={styles.usedIndicator}>In Use</MobileCaption>
+                          )}
+                        </View>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+            </ScrollView>
             
             <View style={styles.modalButtons}>
               <View style={styles.modalButton}>
@@ -678,28 +684,36 @@ const styles = StyleSheet.create({
     padding: scale(16), // Consistent padding
   },
   modalContent: {
-    width: '100%',
-    maxWidth: scale(480), // Consistent max width
-    backgroundColor: '#2a2a2a', // Dark background like infractions modal
-    borderRadius: scale(12), // Consistent border radius
-    borderWidth: 1,
-    borderColor: 'rgba(100, 226, 211, 0.4)', // Primary color border
-    padding: scale(16), // Consistent padding
-    maxHeight: '80%',
-    alignItems: 'center',
-    ...styleTokens.shadows.lg, // Consistent shadow
+    width: '90%',
+    maxWidth: scale(400),
+    backgroundColor: 'rgba(30, 40, 50, 0.98)',
+    borderRadius: scale(12),
+    borderWidth: 2,
+    borderColor: 'rgba(100, 226, 211, 0.4)',
+    padding: scale(20),
+    maxHeight: '85%',
+    ...styleTokens.shadows.lg,
   },
   modalTitle: {
-    color: styleTokens.colors.white, // Changed from textPrimary to white
+    color: styleTokens.colors.white,
     textAlign: 'center',
-    marginBottom: scale(24),
+    marginBottom: scale(16),
+  },
+  modalScrollView: {
+    width: '100%',
+    maxHeight: '100%',
+    paddingRight: scale(8),
+  },
+  modalScrollContent: {
+    paddingBottom: scale(8),
+    paddingRight: scale(4),
   },
   editSection: {
     width: '100%',
-    marginBottom: scale(20),
+    marginBottom: scale(16),
   },
   sectionLabel: {
-    color: styleTokens.colors.white, // Changed from textPrimary to white
+    color: styleTokens.colors.white,
     fontSize: scale(16),
     fontWeight: '600',
     marginBottom: scale(8),
@@ -708,9 +722,8 @@ const styles = StyleSheet.create({
     width: '100%',
     marginBottom: scale(4),
   },
-  colorListContainer: {
+  colorList: {
     width: '100%',
-    maxHeight: scale(200),
   },
   colorListItem: {
     width: '100%',
