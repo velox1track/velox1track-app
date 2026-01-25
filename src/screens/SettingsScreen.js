@@ -1115,9 +1115,22 @@ const SettingsScreen = ({ navigation }) => {
                       <ButtonSecondary onPress={() => setEditingInfractionId(null)} style={styles.infractionBtnSm}>Done</ButtonSecondary>
                       <ButtonSecondary onPress={() => { removeInfraction(item.id); setEditingInfractionId(null); }} style={styles.infractionBtnSm}>Delete</ButtonSecondary>
                     </View>
+                  ) : openInfractionMenuId === item.id ? (
+                    <View style={styles.infractionEditActions}>
+                      <ButtonSecondary onPress={() => { setEditingInfractionId(item.id); setOpenInfractionMenuId(null); }} style={styles.infractionBtnSm}>Edit</ButtonSecondary>
+                      <ButtonSecondary onPress={() => { removeInfraction(item.id); setOpenInfractionMenuId(null); }} style={styles.infractionBtnSm}>Delete</ButtonSecondary>
+                      <Pressable
+                        onPress={() => setOpenInfractionMenuId(null)}
+                        accessibilityRole="button"
+                        accessibilityLabel="Close actions"
+                        style={styles.closeBtn}
+                      >
+                        <MobileBody style={styles.closeBtnText}>✕</MobileBody>
+                      </Pressable>
+                    </View>
                   ) : (
                     <Pressable
-                      onPress={() => setOpenInfractionMenuId(openInfractionMenuId === item.id ? null : item.id)}
+                      onPress={() => setOpenInfractionMenuId(item.id)}
                       accessibilityRole="button"
                       accessibilityLabel={`Open actions for ${item.label || 'infraction'}`}
                       style={styles.moreBtn}
@@ -1125,25 +1138,15 @@ const SettingsScreen = ({ navigation }) => {
                       <MobileBody style={styles.moreBtnText}>⋯</MobileBody>
                     </Pressable>
                   )}
-                  {openInfractionMenuId === item.id && editingInfractionId !== item.id && (
-                    <View style={styles.moreMenu}>
-                      <Pressable style={styles.moreMenuItem} onPress={() => { setEditingInfractionId(item.id); setOpenInfractionMenuId(null); }}>
-                        <MobileCaption style={styles.moreMenuText}>Edit</MobileCaption>
-                      </Pressable>
-                      <Pressable style={styles.moreMenuItem} onPress={() => { removeInfraction(item.id); setOpenInfractionMenuId(null); }}>
-                        <MobileCaption style={styles.moreMenuText}>Delete</MobileCaption>
-                      </Pressable>
-                    </View>
-                  )}
                 </View>
               </View>
             ))}
           </View>
           <View style={styles.formButtons}>
+            <ButtonSecondary onPress={resetInfractionsToDefault}>Reset to Default</ButtonSecondary>
             <ButtonPrimary onPress={saveInfractionsSettings} disabled={isSavingInfractions}>
               {isSavingInfractions ? 'Saving…' : 'Save Infractions'}
             </ButtonPrimary>
-            <ButtonSecondary onPress={resetInfractionsToDefault}>Reset to Default</ButtonSecondary>
           </View>
         </Card>
 
@@ -1609,6 +1612,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: scale(12),
+    gap: scale(16),
   },
   rrCol: {
     width: '48%',
@@ -1775,6 +1779,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     flexBasis: '48%',
     minWidth: scale(160),
+    alignSelf: 'flex-start',
   },
   infractionToggleCol: {
     flexGrow: 1,
@@ -1784,7 +1789,7 @@ const styles = StyleSheet.create({
     gap: scale(6),
   },
   infractionActionsCol: {
-    minWidth: scale(100),
+    minWidth: scale(220),
     alignItems: 'flex-end',
     justifyContent: 'flex-end',
   },
@@ -1806,17 +1811,32 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     lineHeight: scale(16),
   },
+  closeBtn: {
+    width: scale(32),
+    height: scale(32),
+    borderRadius: scale(16),
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+  },
+  closeBtnText: {
+    color: styleTokens.colors.textPrimary,
+    fontWeight: '700',
+    fontSize: scale(14),
+  },
   moreMenu: {
     position: 'absolute',
     top: scale(36),
     right: 0,
-    backgroundColor: styleTokens.components.card.backgroundColor,
-    borderWidth: styleTokens.components.card.borderWidth,
-    borderColor: styleTokens.components.card.borderColor,
+    backgroundColor: 'rgba(30, 40, 50, 0.98)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
     borderRadius: scale(8),
     paddingVertical: scale(6),
     minWidth: scale(140),
-    ...styleTokens.shadows.sm,
+    ...styleTokens.shadows.lg,
     zIndex: 5,
   },
   moreMenuItem: {
@@ -1876,17 +1896,20 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    marginBottom: scale(8),
+    marginBottom: scale(16),
+    gap: scale(12),
   },
   infractionRowLandscape: {
-    alignItems: 'center',
-    marginBottom: scale(10),
+    alignItems: 'flex-start',
+    marginBottom: scale(16),
+    gap: scale(12),
   },
   infractionLabelReadOnly: {
     flexGrow: 1,
     flexBasis: '48%',
     minWidth: scale(160),
     gap: scale(6),
+    alignSelf: 'flex-start',
   },
   infractionLabelValue: {
     color: styleTokens.colors.textPrimary,
@@ -1895,6 +1918,7 @@ const styles = StyleSheet.create({
   infractionEditActions: {
     flexDirection: 'row',
     gap: scale(8),
+    flexWrap: 'wrap',
   },
   infractionBtnSm: {
     minWidth: scale(100),
@@ -2223,13 +2247,13 @@ const styles = StyleSheet.create({
     padding: scale(20),
   },
   modalContent: {
-    backgroundColor: styleTokens.components.card.backgroundColor,
+    backgroundColor: 'rgba(30, 40, 50, 0.98)',
     borderRadius: scale(12),
     padding: scale(24),
     width: '100%',
     maxWidth: scale(400),
-    borderWidth: styleTokens.components.card.borderWidth,
-    borderColor: styleTokens.components.card.borderColor,
+    borderWidth: 2,
+    borderColor: 'rgba(100, 226, 211, 0.4)',
     ...styleTokens.shadows.lg,
   },
   modalTitle: {
