@@ -5,7 +5,8 @@ import {
   ScrollView, 
   Alert,
   Pressable,
-  Modal
+  Modal,
+  Text
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import eventBus from '../lib/eventBus';
@@ -28,6 +29,7 @@ const ScoreboardScreen = ({ navigation }) => {
   const [assignments, setAssignments] = useState([]);
   const [scoringSettings, setScoringSettings] = useState({ places: [] }); // Load from Settings
   const [expandedEvents, setExpandedEvents] = useState(new Set()); // Track which events are expanded
+  const [showResetAllConfirm, setShowResetAllConfirm] = useState(false);
 
   // Default scoring table (fallback if Settings not configured)
   const defaultScoringTable = {
@@ -227,21 +229,20 @@ const ScoreboardScreen = ({ navigation }) => {
   };
 
   const resetAllResults = () => {
-    Alert.alert(
-      'Reset All Results',
-      'Are you sure you want to clear all event results? This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Reset All', 
-          style: 'destructive',
-          onPress: () => {
-            setEventResults([]);
-            saveEventResults([]);
-          }
-        }
-      ]
-    );
+    console.log('Reset all results clicked');
+    setShowResetAllConfirm(true);
+  };
+
+  const handleResetAllConfirm = () => {
+    console.log('Confirming reset all results');
+    setEventResults([]);
+    saveEventResults([]);
+    setShowResetAllConfirm(false);
+  };
+
+  const handleResetAllCancel = () => {
+    console.log('Reset all results cancelled');
+    setShowResetAllConfirm(false);
   };
 
   const getEventStatus = (eventIndex) => {
@@ -385,46 +386,66 @@ const ScoreboardScreen = ({ navigation }) => {
                 
                 return (
                   <View key={index} style={styles.eventContainer}>
-                    <Pressable style={styles.eventRow} onPress={() => handleEventSelection(event, index)}>
-                      <View style={styles.eventInfo}>
+                    {/* Event row - now vertical layout */}
+                    <View style={styles.eventRowVertical}>
+                      {/* Top row: Event number and name */}
+                      <View style={styles.eventHeaderRow}>
                         <MobileH2 style={styles.eventNumber}>#{index + 1}</MobileH2>
-                        <View style={styles.eventDetails}>
-                          <MobileBody style={styles.eventName}>{event}</MobileBody>
-                          <MobileCaption style={[styles.assignmentStatus, { color: assignmentStatus.color }]}>
-                            {assignmentStatus.text}
-                          </MobileCaption>
-                        </View>
+                        <Text style={styles.eventName} numberOfLines={1}>{event}</Text>
                       </View>
                       
-                      <View style={styles.eventActions}>
-                        <View style={styles.eventStatus}>
-                          <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
-                            <MobileCaption style={styles.statusText}>{statusText}</MobileCaption>
-                          </View>
-                          {status === 'pending' && (
-                            <ButtonSecondary onPress={() => handleEventSelection(event, index)}>Enter</ButtonSecondary>
-                          )}
-                          {status === 'completed' && (
-                            <ButtonSecondary onPress={() => handleEventSelection(event, index)}>Edit</ButtonSecondary>
-                          )}
+                      {/* Assignment status */}
+                      <MobileCaption style={[styles.assignmentStatus, { color: assignmentStatus.color }]}>
+                        {assignmentStatus.text}
+                      </MobileCaption>
+                      
+                      {/* Bottom row: Status, button, and athletes toggle */}
+                      <View style={styles.eventActionsRow}>
+                        <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
+                          <MobileCaption style={styles.statusText}>{statusText}</MobileCaption>
                         </View>
+                        
+                        {status === 'pending' && (
+                          <Pressable 
+                            onPress={(e) => {
+                              e.stopPropagation();
+                              handleEventSelection(event, index);
+                            }}
+                            style={styles.eventButton}
+                          >
+                            <Text style={styles.eventButtonText}>ENTER</Text>
+                          </Pressable>
+                        )}
+                        {status === 'completed' && (
+                          <Pressable 
+                            onPress={(e) => {
+                              e.stopPropagation();
+                              handleEventSelection(event, index);
+                            }}
+                            style={styles.eventButton}
+                          >
+                            <Text style={styles.eventButtonText}>EDIT</Text>
+                          </Pressable>
+                        )}
                         
                         {/* Athletes toggle button */}
                         {hasAssignments && (
                           <Pressable 
                             style={styles.athletesToggle} 
-                            onPress={() => toggleEventExpansion(index)}
+                            onPress={(e) => {
+                              e.stopPropagation();
+                              toggleEventExpansion(index);
+                            }}
                           >
-                            <MobileCaption style={styles.athletesToggleText}>
-                              👥 {assignedAthletes.length}
-                            </MobileCaption>
-                            <MobileCaption style={[styles.chevron, isExpanded && styles.chevronExpanded]}>
+                            <Text style={styles.athletesToggleLabel}>Athletes</Text>
+                            <Text style={styles.athletesToggleCount}>{assignedAthletes.length}</Text>
+                            <Text style={[styles.athletesToggleChevron, isExpanded && styles.chevronExpanded]}>
                               ▼
-                            </MobileCaption>
+                            </Text>
                           </Pressable>
                         )}
                       </View>
-                    </Pressable>
+                    </View>
                     
                     {/* Collapsible assigned athletes */}
                     {hasAssignments && isExpanded && (
@@ -499,6 +520,26 @@ const ScoreboardScreen = ({ navigation }) => {
           </Card>
         )}
       </ScrollView>
+
+      {/* Reset All Results Confirmation Modal */}
+      {showResetAllConfirm && (
+        <View style={styles.resetModalOverlay}>
+          <View style={styles.resetModalContent}>
+            <MobileH2 style={styles.resetModalTitle}>Reset All Results</MobileH2>
+            <MobileBody style={styles.resetModalMessage}>
+              Are you sure you want to clear all event results? This action cannot be undone.
+            </MobileBody>
+            <View style={styles.resetModalButtons}>
+              <Pressable style={styles.resetModalButtonCancel} onPress={handleResetAllCancel}>
+                <Text style={styles.resetModalButtonTextCancel}>Cancel</Text>
+              </Pressable>
+              <Pressable style={styles.resetModalButtonConfirm} onPress={handleResetAllConfirm}>
+                <Text style={styles.resetModalButtonTextConfirm}>Reset All</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      )}
     </View>
   );
 };
@@ -1177,58 +1218,75 @@ const styles = StyleSheet.create({
     borderWidth: styleTokens.components.card.borderWidth,
     borderColor: styleTokens.components.card.borderColor,
     overflow: 'hidden',
+    marginBottom: scale(12),
   },
-  eventRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: scale(16),
+  eventRowVertical: {
+    padding: scale(12),
+    gap: scale(8),
   },
-  eventActions: {
+  eventHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: scale(12),
+    gap: scale(10),
+    flexWrap: 'nowrap',
+  },
+  eventNumber: {
+    color: styleTokens.colors.primary,
+    fontSize: scale(16),
+    fontWeight: 'bold',
+    flexShrink: 0,
+    minWidth: scale(35),
+  },
+  eventName: {
+    color: styleTokens.colors.textPrimary,
+    fontSize: scale(14),
+    fontWeight: '700',
+    fontFamily: styleTokens.typography.fonts.roboto || 'System',
+    flex: 1,
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  assignmentStatus: {
+    fontSize: scale(10),
+    marginBottom: scale(2),
+  },
+  eventActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(6),
+    flexWrap: 'wrap',
   },
   athletesToggle: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: scale(8),
-    paddingVertical: scale(4),
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    paddingVertical: scale(5),
+    backgroundColor: 'rgba(100, 226, 211, 0.15)',
     borderRadius: scale(12),
+    borderWidth: 1,
+    borderColor: 'rgba(100, 226, 211, 0.4)',
     gap: scale(4),
+    flexShrink: 0,
   },
-  athletesToggleText: {
-    color: styleTokens.colors.textSecondary,
-    fontSize: scale(12),
+  athletesToggleLabel: {
+    color: styleTokens.colors.white,
+    fontSize: scale(9),
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    fontFamily: styleTokens.typography.fonts.roboto || 'System',
   },
-  chevron: {
-    color: styleTokens.colors.textSecondary,
-    fontSize: scale(10),
+  athletesToggleCount: {
+    color: styleTokens.colors.white,
+    fontSize: scale(9),
+    fontWeight: '700',
+  },
+  athletesToggleChevron: {
+    color: styleTokens.colors.white,
+    fontSize: scale(7),
     transform: [{ rotate: '0deg' }],
   },
   chevronExpanded: {
     transform: [{ rotate: '180deg' }],
-  },
-  eventInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  eventDetails: {
-    flex: 1,
-  },
-  eventNumber: {
-    color: styleTokens.colors.primary,
-    marginRight: scale(16),
-    minWidth: scale(40),
-  },
-  eventName: {
-    color: styleTokens.colors.textPrimary,
-    marginBottom: scale(2),
-  },
-  assignmentStatus: {
-    fontSize: scale(11),
   },
   assignedAthletes: {
     padding: scale(16),
@@ -1249,31 +1307,30 @@ const styles = StyleSheet.create({
   },
   athleteChip: {
     backgroundColor: styleTokens.colors.primaryLight,
-    paddingHorizontal: scale(8),
-    paddingVertical: scale(4),
+    paddingHorizontal: scale(6),
+    paddingVertical: scale(3),
     borderRadius: scale(6),
     borderWidth: 1,
     borderColor: styleTokens.colors.primary,
   },
   athleteChipText: {
     color: styleTokens.colors.textPrimary,
-    fontSize: scale(10),
+    fontSize: scale(9),
     fontWeight: '600',
   },
-  eventStatus: {
-    alignItems: 'flex-end',
-    gap: scale(8),
-  },
   statusBadge: {
-    paddingHorizontal: scale(12),
-    paddingVertical: scale(6),
+    paddingHorizontal: scale(8),
+    paddingVertical: scale(4),
     borderRadius: scale(12),
-    minWidth: scale(80),
+    minWidth: scale(70),
     alignItems: 'center',
+    borderWidth: 1.5,
+    flexShrink: 0,
   },
   statusText: {
     color: styleTokens.colors.white,
     fontWeight: 'bold',
+    fontSize: scale(9),
   },
   resultFormContainer: {
     backgroundColor: styleTokens.components.card.backgroundColor,
@@ -1741,6 +1798,97 @@ const styles = StyleSheet.create({
     fontSize: scale(14),
     color: styleTokens.colors.textSecondary,
     lineHeight: scale(20),
+  },
+  eventButton: {
+    minWidth: scale(50),
+    maxWidth: scale(60),
+    paddingHorizontal: scale(6),
+    paddingVertical: scale(5),
+    backgroundColor: styleTokens.colors.primaryDark,
+    borderRadius: scale(6),
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  eventButtonText: {
+    fontSize: scale(9),
+    color: styleTokens.colors.white,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: scale(0.3),
+    fontFamily: styleTokens.typography.fonts.roboto || 'System',
+  },
+  scoreResetRow: {
+    marginTop: scale(16),
+    paddingTop: scale(16),
+    borderTopWidth: 1,
+    borderTopColor: styleTokens.colors.border,
+    alignItems: 'center',
+  },
+  resetModalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  resetModalContent: {
+    backgroundColor: styleTokens.colors.surface,
+    borderRadius: scale(12),
+    padding: scale(24),
+    width: '90%',
+    maxWidth: scale(400),
+    ...styleTokens.shadows.lg,
+  },
+  resetModalTitle: {
+    color: styleTokens.colors.textPrimary,
+    marginBottom: scale(16),
+    textAlign: 'center',
+  },
+  resetModalMessage: {
+    color: styleTokens.colors.textSecondary,
+    marginBottom: scale(24),
+    textAlign: 'center',
+    lineHeight: scale(20),
+  },
+  resetModalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: scale(12),
+  },
+  resetModalButtonCancel: {
+    flex: 1,
+    backgroundColor: styleTokens.colors.border,
+    paddingVertical: scale(12),
+    paddingHorizontal: scale(20),
+    borderRadius: scale(8),
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: scale(48),
+  },
+  resetModalButtonConfirm: {
+    flex: 1,
+    backgroundColor: styleTokens.colors.error || '#e74c3c',
+    paddingVertical: scale(12),
+    paddingHorizontal: scale(20),
+    borderRadius: scale(8),
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: scale(48),
+  },
+  resetModalButtonTextCancel: {
+    color: styleTokens.colors.textPrimary,
+    fontSize: scale(16),
+    fontWeight: '600',
+  },
+  resetModalButtonTextConfirm: {
+    color: styleTokens.colors.white,
+    fontSize: scale(16),
+    fontWeight: '600',
   },
 });
 

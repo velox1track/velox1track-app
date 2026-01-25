@@ -5,7 +5,8 @@ import {
   ScrollView, 
   Alert,
   Pressable,
-  Modal
+  Modal,
+  Text
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import eventBus from '../lib/eventBus';
@@ -29,6 +30,7 @@ const AssignTeamsScreen = () => {
   const [editedTeamName, setEditedTeamName] = useState('');
   const [editedTeamColor, setEditedTeamColor] = useState('');
   const [availableColors] = useState(getTeamColors());
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   // Load saved data on component mount
   useEffect(() => {
@@ -211,22 +213,21 @@ const AssignTeamsScreen = () => {
   };
 
   const resetTeams = () => {
-    Alert.alert(
-      'Reset Teams',
-      'Are you sure you want to reset all teams? This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Reset', 
-          style: 'destructive',
-          onPress: () => {
-            setTeams([]);
-            saveTeams([]);
-            eventBus.emit('teamsUpdated', 0);
-          }
-        }
-      ]
-    );
+    console.log('Reset teams clicked');
+    setShowResetConfirm(true);
+  };
+
+  const handleResetConfirm = () => {
+    console.log('Confirming reset teams');
+    setTeams([]);
+    saveTeams([]);
+    eventBus.emit('teamsUpdated', 0);
+    setShowResetConfirm(false);
+  };
+
+  const handleResetCancel = () => {
+    console.log('Reset teams cancelled');
+    setShowResetConfirm(false);
   };
 
   const getTeamSize = () => {
@@ -461,6 +462,26 @@ const AssignTeamsScreen = () => {
           </View>
         </View>
       </Modal>
+
+      {/* Reset Teams Confirmation Modal */}
+      {showResetConfirm && (
+        <View style={styles.resetModalOverlay}>
+          <View style={styles.resetModalContent}>
+            <MobileH2 style={styles.resetModalTitle}>Reset Teams</MobileH2>
+            <MobileBody style={styles.resetModalMessage}>
+              Are you sure you want to reset all teams? This action cannot be undone.
+            </MobileBody>
+            <View style={styles.resetModalButtons}>
+              <Pressable style={styles.resetModalButtonCancel} onPress={handleResetCancel}>
+                <Text style={styles.resetModalButtonTextCancel}>Cancel</Text>
+              </Pressable>
+              <Pressable style={styles.resetModalButtonConfirm} onPress={handleResetConfirm}>
+                <Text style={styles.resetModalButtonTextConfirm}>Reset</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      )}
     </View>
   );
 };
@@ -763,6 +784,71 @@ const styles = StyleSheet.create({
   },
   modalButtonText: {
     fontSize: scale(15),
+  },
+  resetModalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  resetModalContent: {
+    backgroundColor: styleTokens.colors.surface,
+    borderRadius: scale(12),
+    padding: scale(24),
+    width: '90%',
+    maxWidth: scale(400),
+    ...styleTokens.shadows.lg,
+  },
+  resetModalTitle: {
+    color: styleTokens.colors.textPrimary,
+    marginBottom: scale(16),
+    textAlign: 'center',
+  },
+  resetModalMessage: {
+    color: styleTokens.colors.textSecondary,
+    marginBottom: scale(24),
+    textAlign: 'center',
+    lineHeight: scale(20),
+  },
+  resetModalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: scale(12),
+  },
+  resetModalButtonCancel: {
+    flex: 1,
+    backgroundColor: styleTokens.colors.border,
+    paddingVertical: scale(12),
+    paddingHorizontal: scale(20),
+    borderRadius: scale(8),
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: scale(48),
+  },
+  resetModalButtonConfirm: {
+    flex: 1,
+    backgroundColor: styleTokens.colors.error || '#e74c3c',
+    paddingVertical: scale(12),
+    paddingHorizontal: scale(20),
+    borderRadius: scale(8),
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: scale(48),
+  },
+  resetModalButtonTextCancel: {
+    color: styleTokens.colors.textPrimary,
+    fontSize: scale(16),
+    fontWeight: '600',
+  },
+  resetModalButtonTextConfirm: {
+    color: styleTokens.colors.white,
+    fontSize: scale(16),
+    fontWeight: '600',
   },
 });
 

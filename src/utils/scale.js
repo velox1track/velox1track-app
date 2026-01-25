@@ -6,13 +6,18 @@ const baseWidth = 375; // iPhone X base width
 /**
  * Responsive scaling utility for typography and spacing
  * Scales values based on screen width relative to base width (375px)
+ * Implements max scale factor to prevent oversized elements on large screens
  * 
  * @param {number} size - Base size to scale
  * @param {number} base - Base screen width (default: 375)
  * @returns {number} Scaled size rounded to nearest pixel
  */
 export const scale = (size, base = baseWidth) => {
-  const scaleFactor = SCREEN_WIDTH / base;
+  const rawScaleFactor = SCREEN_WIDTH / base;
+  // Cap the scale factor at 1.5x (for screens up to ~562px)
+  // On larger screens (tablets, laptops), stop scaling to prevent oversized UI
+  const maxScaleFactor = 1.5;
+  const scaleFactor = Math.min(rawScaleFactor, maxScaleFactor);
   const newSize = size * scaleFactor;
   return Math.round(PixelRatio.roundToNearestPixel(newSize));
 };
