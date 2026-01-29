@@ -38,82 +38,116 @@ export const assignTeams = (athletes, numTeams) => {
     };
   }
   
-  // Separate and shuffle athletes by tier for randomness within balance
-  const highTier = shuffleArray(athletes.filter(athlete => athlete.tier === 'High'));
-  const medTier = shuffleArray(athletes.filter(athlete => athlete.tier === 'Med'));
-  const lowTier = shuffleArray(athletes.filter(athlete => athlete.tier === 'Low'));
+  // NEW APPROACH: Separate by gender first, then balance each gender group independently
+  const maleAthletes = athletes.filter(athlete => athlete.gender === 'Male');
+  const femaleAthletes = athletes.filter(athlete => athlete.gender === 'Female');
   
-  // Initialize teams with colors
+  // Initialize teams with colors and tracking
   const teams = Array.from({ length: numTeams }, (_, i) => ({
     id: i + 1,
     name: `Team ${i + 1}`,
     color: TEAM_COLORS[i % TEAM_COLORS.length],
     athletes: [],
-    tierCounts: { high: 0, med: 0, low: 0 } // Track tier distribution
+    maleCount: 0,
+    femaleCount: 0,
+    maleTalentScore: 0,
+    femaleTalentScore: 0,
+    tierCounts: { high: 0, med: 0, low: 0 }
   }));
   
-  // Balanced assignment strategy:
-  // 1. Calculate target team sizes (as equal as possible)
-  // 2. Use snake draft approach to balance talent while maintaining equal sizes
-  // 3. Prioritize talent balance within size constraints
-  
-  const totalAthletes = athletes.length;
-  const baseTeamSize = Math.floor(totalAthletes / numTeams);
-  const extraAthletes = totalAthletes % numTeams; // Some teams get +1 athlete
-  
-  // Calculate target sizes for each team
-  const targetSizes = teams.map((_, index) => 
-    baseTeamSize + (index < extraAthletes ? 1 : 0)
-  );
-  
-  // Create a combined pool of all athletes with tier priority
-  // Sort by tier (High first, then Med, then Low) but shuffle within tiers
-  const allAthletes = [
-    ...highTier.map(a => ({ ...a, tierValue: 3 })),
-    ...medTier.map(a => ({ ...a, tierValue: 2 })),
-    ...lowTier.map(a => ({ ...a, tierValue: 1 }))
-  ];
-  
-  // Snake draft assignment to balance talent while maintaining equal sizes
-  let currentTeam = 0;
-  let direction = 1; // 1 for forward, -1 for backward (snake pattern)
-  
-  allAthletes.forEach(athlete => {
-    // Find teams that still need athletes
-    const availableTeams = teams
-      .map((team, index) => ({ team, index, currentSize: team.athletes.length, targetSize: targetSizes[index] }))
-      .filter(t => t.currentSize < t.targetSize);
+  // Helper function to assign a gender group with balanced talent distribution
+  const assignGenderGroup = (genderAthletes, genderKey) => {
+    // Separate by tier and shuffle within each tier for randomness
+    const highTier = shuffleArray(genderAthletes.filter(a => a.tier === 'High'));
+    const medTier = shuffleArray(genderAthletes.filter(a => a.tier === 'Med'));
+    const lowTier = shuffleArray(genderAthletes.filter(a => a.tier === 'Low'));
     
-    if (availableTeams.length === 0) return; // All teams full
+    // Combine all athletes with tier values
+    const allGenderAthletes = [
+      ...highTier.map(a => ({ ...a, tierValue: 3 })),
+      ...medTier.map(a => ({ ...a, tierValue: 2 })),
+      ...lowTier.map(a => ({ ...a, tierValue: 1 }))
+    ];
     
-    // If only one team available, assign there
-    if (availableTeams.length === 1) {
-      const targetTeam = availableTeams[0];
-      targetTeam.team.athletes.push(athlete);
-      targetTeam.team.tierCounts[athlete.tier.toLowerCase()]++;
-      return;
-    }
+    // Calculate base size and extra athletes
+    const totalGenderAthletes = genderAthletes.length;
+    const baseSize = Math.floor(totalGenderAthletes / numTeams);
+    const extraAthletes = totalGenderAthletes % numTeams;
     
-    // Multiple teams available - use talent balance to decide
-    // Find team with lowest talent score among available teams
-    const teamScores = availableTeams.map(t => ({
-      ...t,
-      talentScore: t.team.tierCounts.high * 3 + t.team.tierCounts.med * 2 + t.team.tierCounts.low * 1
-    }));
+    // Track how many athletes have been assigned to each team for this gender
+    const assignedCounts = teams.map(() => 0);
     
-    // Sort by talent score (lowest first), then by team index for consistency
-    teamScores.sort((a, b) => {
-      if (a.talentScore !== b.talentScore) return a.talentScore - b.talentScore;
-      return a.index - b.index;
+    // Assign each athlete dynamically based on current team scores
+    allGenderAthletes.forEach(athlete => {
+      // Find teams that can still receive athletes
+      const availableTeams = teams
+        .map((team, index) => ({
+          team,
+          index,
+          currentSize: assignedCounts[index],
+          genderTalentScore: genderKey === 'male' ? team.maleTalentScore : team.femaleTalentScore,
+          totalTalentScore: team.maleTalentScore + team.femaleTalentScore,
+          canReceiveMore: assignedCounts[index] < baseSize || 
+                         (assignedCounts[index] === baseSize && assignedCounts[index] < baseSize + 1)
+        }))
+        .filter(t => t.canReceiveMore);
+      
+      if (availableTeams.length === 0) return; // All teams full
+      
+      // Separate teams at base size vs those that can take extras
+      const teamsNeedingBase = availableTeams.filter(t => t.currentSize < baseSize);
+      const teamsForExtras = availableTeams.filter(t => t.currentSize >= baseSize);
+      
+      let selectedTeam;
+      
+      if (teamsNeedingBase.length > 0) {
+        // Priority: Fill all teams to base size first
+        teamsNeedingBase.sort((a, b) => {
+          if (a.genderTalentScore !== b.genderTalentScore) {
+            return a.genderTalentScore - b.genderTalentScore;
+          }
+          if (a.totalTalentScore !== b.totalTalentScore) {
+            return a.totalTalentScore - b.totalTalentScore;
+          }
+          return a.index - b.index;
+        });
+        selectedTeam = teamsNeedingBase[0];
+      } else if (teamsForExtras.length > 0 && assignedCounts.filter(c => c > baseSize).length < extraAthletes) {
+        // All teams at base size, assign extras to teams with lowest scores
+        teamsForExtras.sort((a, b) => {
+          if (a.genderTalentScore !== b.genderTalentScore) {
+            return a.genderTalentScore - b.genderTalentScore;
+          }
+          if (a.totalTalentScore !== b.totalTalentScore) {
+            return a.totalTalentScore - b.totalTalentScore;
+          }
+          return a.index - b.index;
+        });
+        selectedTeam = teamsForExtras[0];
+      } else {
+        return; // No valid team found
+      }
+      
+      // Assign athlete to selected team
+      selectedTeam.team.athletes.push(athlete);
+      selectedTeam.team.tierCounts[athlete.tier.toLowerCase()]++;
+      assignedCounts[selectedTeam.index]++;
+      
+      if (genderKey === 'male') {
+        selectedTeam.team.maleCount++;
+        selectedTeam.team.maleTalentScore += athlete.tierValue;
+      } else {
+        selectedTeam.team.femaleCount++;
+        selectedTeam.team.femaleTalentScore += athlete.tierValue;
+      }
     });
-    
-    // Assign to team with lowest talent score
-    const selectedTeam = teamScores[0];
-    selectedTeam.team.athletes.push(athlete);
-    selectedTeam.team.tierCounts[athlete.tier.toLowerCase()]++;
-  });
+  };
   
-  // Remove temporary tierCounts from final result
+  // Assign males first, then females (order doesn't matter for balance)
+  assignGenderGroup(maleAthletes, 'male');
+  assignGenderGroup(femaleAthletes, 'female');
+  
+  // Remove temporary tracking fields from final result
   const finalTeams = teams.map(team => ({
     id: team.id,
     name: team.name,
@@ -126,13 +160,20 @@ export const assignTeams = (athletes, numTeams) => {
     teams: finalTeams,
     stats: {
       totalAthletes: athletes.length,
-      highTier: highTier.length,
-      medTier: medTier.length,
-      lowTier: lowTier.length,
+      maleAthletes: maleAthletes.length,
+      femaleAthletes: femaleAthletes.length,
+      highTier: athletes.filter(a => a.tier === 'High').length,
+      medTier: athletes.filter(a => a.tier === 'Med').length,
+      lowTier: athletes.filter(a => a.tier === 'Low').length,
       averageTeamSize: Math.round(athletes.length / numTeams * 10) / 10,
       teamBalance: teams.map(team => ({
         teamName: team.name,
-        talentScore: team.tierCounts.high * 3 + team.tierCounts.med * 2 + team.tierCounts.low * 1,
+        totalAthletes: team.athletes.length,
+        males: team.maleCount,
+        females: team.femaleCount,
+        maleTalentScore: team.maleTalentScore,
+        femaleTalentScore: team.femaleTalentScore,
+        totalTalentScore: team.maleTalentScore + team.femaleTalentScore,
         distribution: `${team.tierCounts.high}H/${team.tierCounts.med}M/${team.tierCounts.low}L`
       }))
     }

@@ -8,6 +8,7 @@ import { scale } from '../utils/scale';
 
 const AthleteForm = ({ onAddAthlete }) => {
   const [name, setName] = useState('');
+  const [gender, setGender] = useState('Male');
   const [tier, setTier] = useState('Med');
   const [bestEvents, setBestEvents] = useState('');
 
@@ -20,6 +21,7 @@ const AthleteForm = ({ onAddAthlete }) => {
     const athlete = {
       id: Date.now().toString(), // Simple ID generation
       name: name.trim(),
+      gender: gender,
       tier: tier,
       bestEvents: bestEvents.trim() || null,
     };
@@ -28,10 +30,12 @@ const AthleteForm = ({ onAddAthlete }) => {
     
     // Reset form
     setName('');
+    setGender('Male');
     setTier('Med');
     setBestEvents('');
   };
 
+  const genders = ['Male', 'Female'];
   const tiers = ['High', 'Med', 'Low'];
 
   return (
@@ -43,6 +47,31 @@ const AthleteForm = ({ onAddAthlete }) => {
           value={name}
           onChangeText={setName}
         />
+      </View>
+
+      <View style={styles.formRow}>
+        <MobileBody style={styles.tierLabel}>Gender</MobileBody>
+        <View style={styles.tierSelector}>
+          {genders.map((genderOption) => (
+            <TouchableOpacity
+              key={genderOption}
+              style={[
+                styles.tierChip,
+                gender === genderOption && styles.tierChipActive
+              ]}
+              onPress={() => setGender(genderOption)}
+            >
+              <MobileCaption
+                style={[
+                  styles.tierChipText,
+                  gender === genderOption && styles.tierChipTextActive
+                ]}
+              >
+                {genderOption}
+              </MobileCaption>
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
 
       <View style={styles.formRow}>

@@ -102,6 +102,10 @@ const TeamBuilderScreen = () => {
     return athletes.filter(athlete => athlete.tier === tier).length;
   };
 
+  const getGenderCount = (gender) => {
+    return athletes.filter(athlete => athlete.gender === gender).length;
+  };
+
   return (
     <View style={styles.container}>
       <ScrollView 
@@ -166,6 +170,24 @@ const TeamBuilderScreen = () => {
             </View>
           )}
 
+          {/* Gender Summary */}
+          {athletes.length > 0 && (
+            <View style={styles.genderSummary}>
+              <View style={styles.genderSummaryItem}>
+                <View style={[styles.genderBadge, styles.genderMale]}>
+                  <Text style={styles.genderIcon}>♂</Text>
+                </View>
+                <MobileBody style={styles.genderSummaryText}>Male: {getGenderCount('Male')}</MobileBody>
+              </View>
+              <View style={styles.genderSummaryItem}>
+                <View style={[styles.genderBadge, styles.genderFemale]}>
+                  <Text style={styles.genderIcon}>♀</Text>
+                </View>
+                <MobileBody style={styles.genderSummaryText}>Female: {getGenderCount('Female')}</MobileBody>
+              </View>
+            </View>
+          )}
+
           {/* Athletes List */}
           {athletes.length === 0 ? (
             <View style={styles.emptyContainer}>
@@ -180,8 +202,20 @@ const TeamBuilderScreen = () => {
                 <View key={athlete.id} style={styles.athleteCard}>
                   <View style={styles.athleteInfo}>
                     <MobileH2 style={styles.athleteName} numberOfLines={2}>{athlete.name}</MobileH2>
-                    <View style={[styles.tierBadge, styles[`tier${athlete.tier}`]]}>
-                      <MobileCaption style={styles.tierText}>{athlete.tier}</MobileCaption>
+                    <View style={styles.badgeContainer}>
+                      {athlete.gender && (
+                        <View style={[
+                          styles.genderBadge, 
+                          athlete.gender === 'Male' ? styles.genderMale : styles.genderFemale
+                        ]}>
+                          <Text style={styles.genderIcon}>
+                            {athlete.gender === 'Male' ? '♂' : '♀'}
+                          </Text>
+                        </View>
+                      )}
+                      <View style={[styles.tierBadge, styles[`tier${athlete.tier}`]]}>
+                        <MobileCaption style={styles.tierText}>{athlete.tier}</MobileCaption>
+                      </View>
                     </View>
                   </View>
                   {athlete.bestEvents && (
@@ -332,13 +366,32 @@ const styles = StyleSheet.create({
   tierSummary: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginBottom: scale(20),
+    marginBottom: scale(16),
     padding: scale(16),
     backgroundColor: styleTokens.colors.surface,
     borderRadius: scale(8),
   },
   tierItem: {
     alignItems: 'center',
+  },
+  genderSummary: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: scale(24),
+    marginBottom: scale(20),
+    padding: scale(16),
+    backgroundColor: styleTokens.colors.surface,
+    borderRadius: scale(8),
+  },
+  genderSummaryItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(8),
+  },
+  genderSummaryText: {
+    color: styleTokens.colors.textPrimary,
+    fontSize: scale(14),
+    fontWeight: '600',
   },
   tierBadge: {
     paddingHorizontal: scale(12),
@@ -419,6 +472,32 @@ const styles = StyleSheet.create({
     color: styleTokens.colors.textPrimary,
     flex: 1,
     flexShrink: 1,
+  },
+  badgeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(6),
+  },
+  genderBadge: {
+    width: scale(28),
+    height: scale(28),
+    borderRadius: scale(14),
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1.5,
+  },
+  genderMale: {
+    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+    borderColor: 'rgba(59, 130, 246, 0.6)',
+  },
+  genderFemale: {
+    backgroundColor: 'rgba(236, 72, 153, 0.15)',
+    borderColor: 'rgba(236, 72, 153, 0.6)',
+  },
+  genderIcon: {
+    fontSize: scale(16),
+    color: styleTokens.colors.white,
+    fontWeight: 'bold',
   },
   bestEvents: {
     fontSize: scale(14),
