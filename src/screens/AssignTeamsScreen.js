@@ -36,6 +36,7 @@ const AssignTeamsScreen = () => {
   const [assignmentMode, setAssignmentMode] = useState('auto'); // 'auto' or 'manual'
   const [selectedAthletes, setSelectedAthletes] = useState([]); // IDs of selected athletes
   const [selectedTeamForAssignment, setSelectedTeamForAssignment] = useState(null); // Team to assign to
+  const [teamsAcceptingRandom, setTeamsAcceptingRandom] = useState({}); // { teamId: boolean }
 
   // Load saved data on component mount
   useEffect(() => {
@@ -256,6 +257,13 @@ const AssignTeamsScreen = () => {
     saveTeams(emptyTeams);
     setSelectedAthletes([]);
     setSelectedTeamForAssignment(emptyTeams[0].id); // Select first team by default
+    
+    // Initialize all teams as accepting random athletes by default
+    const acceptingRandom = {};
+    emptyTeams.forEach(team => {
+      acceptingRandom[team.id] = true;
+    });
+    setTeamsAcceptingRandom(acceptingRandom);
   };
 
   const toggleAthleteSelection = (athleteId) => {
@@ -316,21 +324,22 @@ const AssignTeamsScreen = () => {
 
   const switchToManualMode = () => {
     if (teams.length > 0) {
-      Alert.alert(
-        'Switch to Manual Mode',
-        'Switching to manual mode will reset current teams. Continue?',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Continue',
-            onPress: () => {
-              setAssignmentMode('manual');
-              initializeManualTeams();
-            }
-          }
-        ]
-      );
+      // Teams already exist, just switch mode and keep them
+      setAssignmentMode('manual');
+      
+      // Initialize all teams as accepting random athletes by default
+      const acceptingRandom = {};
+      teams.forEach(team => {
+        acceptingRandom[team.id] = true;
+      });
+      setTeamsAcceptingRandom(acceptingRandom);
+      
+      // Select first team by default
+      if (teams.length > 0) {
+        setSelectedTeamForAssignment(teams[0].id);
+      }
     } else {
+      // No teams exist, create empty ones
       setAssignmentMode('manual');
       initializeManualTeams();
     }
@@ -340,6 +349,131 @@ const AssignTeamsScreen = () => {
     setAssignmentMode('auto');
     setSelectedAthletes([]);
     setSelectedTeamForAssignment(null);
+    setTeamsAcceptingRandom({});
+  };
+
+  const toggleTeamAcceptingRandom = (teamId) => {
+    setTeamsAcceptingRandom(prev => ({
+      ...prev,
+      [teamId]: !prev[teamId]
+    }));
+  };
+
+  const fillTeamsRandomly = () => {
+    const unassignedAthletes = getUnassignedAthletes();
+    
+    if (unassignedAthletes.length === 0) {
+      Alert.alert('No Athletes Available', 'All athletes have been assigned to teams.');
+      return;
+    }
+
+    // Get teams that accept random athletes
+    const openTeams = teams.filter(team => teamsAcceptingRandom[team.id]);
+    
+    if (openTeams.length === 0) {
+      Alert.alert('No Teams Accepting Athletes', 'Please mark at least one team as accepting random athletes.');
+      return;
+    }
+
+    // Calculate total athletes in open teams (existing + unassigned)
+    const existingAthletesInOpenTeams = openTeams.reduce((sum, team) => sum + team.athletes.length, 0);
+    const totalAthletesForOpenTeams = existingAthletesInOpenTeams + unassignedAthletes.length;
+    
+    // Calculate target size for each open team
+    const targetSize = Math.ceil(totalAthletesForOpenTeams / openTeams.length);
+    
+    // Create working copies of open teams with their existing athletes
+    const workingOpenTeams = openTeams.map(team => ({
+      ...team,
+      athletes: [...team.athletes]
+    }));
+    
+    // Separate athletes by gender for balanced distribution
+    const maleAthletes = unassignedAthletes.filter(a => a.gender === 'Male');
+    const femaleAthletes = unassignedAthletes.filter(a => a.gender === 'Female');
+    
+    // Helper function to assign a gender group
+    const assignGenderGroupToOpenTeams = (genderAthletes) => {
+      // Shuffle within tiers for randomness
+      const shuffleArray = (arr) => {
+        const shuffled = [...arr];
+        for (let i = shuffled.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
+        return shuffled;
+      };
+      
+      const highTier = shuffleArray(genderAthletes.filter(a => a.tier === 'High'));
+      const medTier = shuffleArray(genderAthletes.filter(a => a.tier === 'Med'));
+      const lowTier = shuffleArray(genderAthletes.filter(a => a.tier === 'Low'));
+      
+      const allGenderAthletes = [
+        ...highTier.map(a => ({ ...a, tierValue: 3 })),
+        ...medTier.map(a => ({ ...a, tierValue: 2 })),
+        ...lowTier.map(a => ({ ...a, tierValue: 1 }))
+      ];
+      
+      // Assign each athlete to the team with lowest count of this gender
+      allGenderAthletes.forEach(athlete => {
+        // Find open team with lowest count of this gender using workingOpenTeams
+        const teamStats = workingOpenTeams.map(team => {
+          const genderCount = team.athletes.filter(a => a.gender === athlete.gender).length;
+          const genderTalent = team.athletes
+            .filter(a => a.gender === athlete.gender)
+            .reduce((sum, a) => sum + (a.tier === 'High' ? 3 : a.tier === 'Med' ? 2 : 1), 0);
+          const totalCount = team.athletes.length;
+          
+          return {
+            team,
+            genderCount,
+            genderTalent,
+            totalCount
+          };
+        });
+        
+        // Sort by: 1) total count (fill to target first), 2) gender talent (balance within gender)
+        teamStats.sort((a, b) => {
+          // Primary: total team size (lowest first, to reach target evenly)
+          if (a.totalCount !== b.totalCount) {
+            return a.totalCount - b.totalCount;
+          }
+          // Secondary: gender talent score (balance this gender)
+          if (a.genderTalent !== b.genderTalent) {
+            return a.genderTalent - b.genderTalent;
+          }
+          // Tertiary: gender count
+          return a.genderCount - b.genderCount;
+        });
+        
+        // Assign to team with lowest stats
+        const selectedTeam = teamStats[0].team;
+        selectedTeam.athletes.push(athlete);
+      });
+    };
+    
+    // Assign males and females separately
+    assignGenderGroupToOpenTeams(maleAthletes);
+    assignGenderGroupToOpenTeams(femaleAthletes);
+    
+    // Merge updated open teams back into all teams
+    const updatedTeams = teams.map(team => {
+      if (!teamsAcceptingRandom[team.id]) {
+        return team; // Closed team, keep as is
+      }
+      
+      // Find the updated open team
+      const updatedOpenTeam = workingOpenTeams.find(t => t.id === team.id);
+      return updatedOpenTeam || team;
+    });
+
+    setTeams(updatedTeams);
+    saveTeams(updatedTeams);
+    
+    Alert.alert(
+      'Athletes Assigned!',
+      `Successfully assigned ${unassignedAthletes.length} athletes to ${openTeams.length} open teams.`
+    );
   };
 
   const getTeamSize = () => {
@@ -452,27 +586,50 @@ const AssignTeamsScreen = () => {
               <MobileBody style={styles.teamSelectorLabel}>Select Team:</MobileBody>
               <View style={styles.teamSelectorButtons}>
                 {teams.map(team => (
-                  <Pressable
-                    key={team.id}
-                    style={[
-                      styles.teamSelectorButton,
-                      selectedTeamForAssignment === team.id && styles.teamSelectorButtonActive,
-                      { borderLeftColor: team.color }
-                    ]}
-                    onPress={() => setSelectedTeamForAssignment(team.id)}
-                  >
-                    <MobileBody style={[
-                      styles.teamSelectorButtonText,
-                      selectedTeamForAssignment === team.id && styles.teamSelectorButtonTextActive
-                    ]}>
-                      {team.name}
-                    </MobileBody>
-                    <MobileCaption style={styles.teamSelectorCount}>
-                      ({team.athletes.length})
-                    </MobileCaption>
-                  </Pressable>
+                  <View key={team.id} style={styles.teamSelectorRow}>
+                    <Pressable
+                      style={[
+                        styles.teamSelectorButton,
+                        selectedTeamForAssignment === team.id && styles.teamSelectorButtonActive,
+                        { borderLeftColor: team.color }
+                      ]}
+                      onPress={() => setSelectedTeamForAssignment(team.id)}
+                    >
+                      <View style={styles.teamSelectorInfo}>
+                        <MobileBody style={[
+                          styles.teamSelectorButtonText,
+                          selectedTeamForAssignment === team.id && styles.teamSelectorButtonTextActive
+                        ]}>
+                          {team.name}
+                        </MobileBody>
+                        <MobileCaption style={styles.teamSelectorCount}>
+                          ({team.athletes.length})
+                        </MobileCaption>
+                      </View>
+                      <Pressable
+                        style={[
+                          styles.randomToggle,
+                          teamsAcceptingRandom[team.id] && styles.randomToggleActive
+                        ]}
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          toggleTeamAcceptingRandom(team.id);
+                        }}
+                      >
+                        <MobileCaption style={[
+                          styles.randomToggleText,
+                          teamsAcceptingRandom[team.id] && styles.randomToggleTextActive
+                        ]}>
+                          {teamsAcceptingRandom[team.id] ? 'Open' : 'Closed'}
+                        </MobileCaption>
+                      </Pressable>
+                    </Pressable>
+                  </View>
                 ))}
               </View>
+              <MobileCaption style={styles.randomToggleHint}>
+                Toggle "Open/Closed" to allow random assignment to teams
+              </MobileCaption>
             </View>
 
             {/* Athlete Selection */}
@@ -526,6 +683,25 @@ const AssignTeamsScreen = () => {
             >
               Assign to {teams.find(t => t.id === selectedTeamForAssignment)?.name || 'Team'}
             </ButtonPrimary>
+
+            {/* Fill Teams Randomly Button */}
+            <ButtonSecondary
+              onPress={fillTeamsRandomly}
+              disabled={getUnassignedAthletes().length === 0}
+              style={styles.fillRandomButton}
+            >
+              Fill Teams Randomly
+            </ButtonSecondary>
+          </Card>
+        )}
+
+        {/* Fill Teams Randomly (when no unassigned athletes but in manual mode) */}
+        {assignmentMode === 'manual' && teams.length > 0 && getUnassignedAthletes().length === 0 && (
+          <Card style={styles.manualAssignmentCard}>
+            <MobileH2 style={styles.sectionTitle}>All Athletes Assigned</MobileH2>
+            <MobileBody style={styles.allAssignedText}>
+              All athletes have been assigned to teams. You can use Edit Mode to move athletes between teams if needed.
+            </MobileBody>
           </Card>
         )}
 
@@ -1258,6 +1434,53 @@ const styles = StyleSheet.create({
   assignButton: {
     width: '100%',
     marginTop: scale(8),
+  },
+  fillRandomButton: {
+    width: '100%',
+    marginTop: scale(12),
+  },
+  teamSelectorRow: {
+    marginBottom: scale(8),
+  },
+  teamSelectorInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(8),
+    flex: 1,
+  },
+  randomToggle: {
+    paddingHorizontal: scale(12),
+    paddingVertical: scale(6),
+    borderRadius: scale(6),
+    backgroundColor: 'rgba(159, 167, 174, 0.3)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    minWidth: scale(70),
+    alignItems: 'center',
+  },
+  randomToggleActive: {
+    backgroundColor: styleTokens.colors.primary,
+    borderColor: styleTokens.colors.primary,
+  },
+  randomToggleText: {
+    color: styleTokens.colors.textSecondary,
+    fontSize: scale(12),
+    fontWeight: '600',
+    textTransform: 'uppercase',
+  },
+  randomToggleTextActive: {
+    color: styleTokens.colors.white,
+  },
+  randomToggleHint: {
+    color: styleTokens.colors.textSecondary,
+    fontSize: scale(12),
+    marginTop: scale(8),
+    fontStyle: 'italic',
+  },
+  allAssignedText: {
+    color: styleTokens.colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: scale(20),
   },
 });
 
