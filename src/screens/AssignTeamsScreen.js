@@ -31,6 +31,11 @@ const AssignTeamsScreen = () => {
   const [editedTeamColor, setEditedTeamColor] = useState('');
   const [availableColors] = useState(getTeamColors());
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  
+  // Manual assignment mode states
+  const [assignmentMode, setAssignmentMode] = useState('auto'); // 'auto' or 'manual'
+  const [selectedAthletes, setSelectedAthletes] = useState([]); // IDs of selected athletes
+  const [selectedTeamForAssignment, setSelectedTeamForAssignment] = useState(null); // Team to assign to
 
   // Load saved data on component mount
   useEffect(() => {
@@ -230,6 +235,113 @@ const AssignTeamsScreen = () => {
     setShowResetConfirm(false);
   };
 
+  // Manual assignment functions
+  const initializeManualTeams = () => {
+    const num = parseInt(numTeams);
+    if (num < 1) {
+      Alert.alert('Invalid Input', 'Number of teams must be at least 1.');
+      return;
+    }
+
+    // Create empty teams
+    const TEAM_COLORS = getTeamColors();
+    const emptyTeams = Array.from({ length: num }, (_, i) => ({
+      id: i + 1,
+      name: `Team ${i + 1}`,
+      color: TEAM_COLORS[i % TEAM_COLORS.length],
+      athletes: []
+    }));
+
+    setTeams(emptyTeams);
+    saveTeams(emptyTeams);
+    setSelectedAthletes([]);
+    setSelectedTeamForAssignment(emptyTeams[0].id); // Select first team by default
+  };
+
+  const toggleAthleteSelection = (athleteId) => {
+    setSelectedAthletes(prev => {
+      if (prev.includes(athleteId)) {
+        return prev.filter(id => id !== athleteId);
+      } else {
+        return [...prev, athleteId];
+      }
+    });
+  };
+
+  const assignSelectedAthletes = () => {
+    if (selectedAthletes.length === 0) {
+      Alert.alert('No Athletes Selected', 'Please select at least one athlete to assign.');
+      return;
+    }
+
+    if (!selectedTeamForAssignment) {
+      Alert.alert('No Team Selected', 'Please select a team to assign athletes to.');
+      return;
+    }
+
+    // Find the selected team
+    const teamIndex = teams.findIndex(t => t.id === selectedTeamForAssignment);
+    if (teamIndex === -1) return;
+
+    // Get the athletes to assign (from unassigned pool)
+    const unassignedAthletes = getUnassignedAthletes();
+    const athletesToAssign = unassignedAthletes.filter(a => selectedAthletes.includes(a.id));
+
+    // Update teams
+    const updatedTeams = [...teams];
+    updatedTeams[teamIndex] = {
+      ...updatedTeams[teamIndex],
+      athletes: [...updatedTeams[teamIndex].athletes, ...athletesToAssign]
+    };
+
+    setTeams(updatedTeams);
+    saveTeams(updatedTeams);
+
+    // Clear selection
+    setSelectedAthletes([]);
+  };
+
+  const getUnassignedAthletes = () => {
+    if (teams.length === 0) return athletes;
+    
+    const assignedIds = new Set();
+    teams.forEach(team => {
+      team.athletes.forEach(athlete => {
+        assignedIds.add(athlete.id);
+      });
+    });
+
+    return athletes.filter(a => !assignedIds.has(a.id));
+  };
+
+  const switchToManualMode = () => {
+    if (teams.length > 0) {
+      Alert.alert(
+        'Switch to Manual Mode',
+        'Switching to manual mode will reset current teams. Continue?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Continue',
+            onPress: () => {
+              setAssignmentMode('manual');
+              initializeManualTeams();
+            }
+          }
+        ]
+      );
+    } else {
+      setAssignmentMode('manual');
+      initializeManualTeams();
+    }
+  };
+
+  const switchToAutoMode = () => {
+    setAssignmentMode('auto');
+    setSelectedAthletes([]);
+    setSelectedTeamForAssignment(null);
+  };
+
   const getTeamSize = () => {
     if (athletes.length === 0 || teams.length === 0) return 0;
     return Math.ceil(athletes.length / teams.length);
@@ -247,7 +359,27 @@ const AssignTeamsScreen = () => {
       >
         {/* Controls Section */}
         <Card style={styles.sectionCard} variant="primary">
-          <MobileH2 style={styles.sectionTitle}>Generate Teams</MobileH2>
+          <MobileH2 style={styles.sectionTitle}>Team Assignment</MobileH2>
+
+          {/* Mode Toggle */}
+          <View style={styles.modeToggleContainer}>
+            <Pressable
+              style={[styles.modeToggleButton, assignmentMode === 'auto' && styles.modeToggleButtonActive]}
+              onPress={switchToAutoMode}
+            >
+              <MobileBody style={[styles.modeToggleText, assignmentMode === 'auto' && styles.modeToggleTextActive]}>
+                Auto Generate
+              </MobileBody>
+            </Pressable>
+            <Pressable
+              style={[styles.modeToggleButton, assignmentMode === 'manual' && styles.modeToggleButtonActive]}
+              onPress={switchToManualMode}
+            >
+              <MobileBody style={[styles.modeToggleText, assignmentMode === 'manual' && styles.modeToggleTextActive]}>
+                Manual Assignment
+              </MobileBody>
+            </Pressable>
+          </View>
 
           <View style={styles.inputRow}>
             <View style={styles.inputGroupHalf}>
@@ -265,15 +397,31 @@ const AssignTeamsScreen = () => {
             <MobileCaption style={styles.infoText}>Current Teams: {teams.length}</MobileCaption>
           </View>
 
-          <ButtonPrimary 
-            onPress={generateTeams}
-            disabled={athletes.length === 0 || !isPlannedTeamsValid}
-            style={styles.generateButton}
-          >
-            Generate Teams
-          </ButtonPrimary>
-          {!isPlannedTeamsValid && (
-            <MobileCaption style={styles.plannedHint}>Set planned team count in Settings → Team Configuration</MobileCaption>
+          {assignmentMode === 'auto' ? (
+            <>
+              <ButtonPrimary 
+                onPress={generateTeams}
+                disabled={athletes.length === 0 || !isPlannedTeamsValid}
+                style={styles.generateButton}
+              >
+                Generate Teams
+              </ButtonPrimary>
+              {!isPlannedTeamsValid && (
+                <MobileCaption style={styles.plannedHint}>Set planned team count in Settings → Team Configuration</MobileCaption>
+              )}
+            </>
+          ) : (
+            <>
+              {teams.length === 0 && (
+                <ButtonPrimary 
+                  onPress={initializeManualTeams}
+                  disabled={!isPlannedTeamsValid}
+                  style={styles.generateButton}
+                >
+                  Create Empty Teams
+                </ButtonPrimary>
+              )}
+            </>
           )}
 
           {teams.length > 0 && (
@@ -293,6 +441,93 @@ const AssignTeamsScreen = () => {
             </View>
           )}
         </Card>
+
+        {/* Manual Assignment Interface */}
+        {assignmentMode === 'manual' && teams.length > 0 && getUnassignedAthletes().length > 0 && (
+          <Card style={styles.manualAssignmentCard}>
+            <MobileH2 style={styles.sectionTitle}>Assign Athletes to Teams</MobileH2>
+            
+            {/* Team Selector */}
+            <View style={styles.teamSelectorSection}>
+              <MobileBody style={styles.teamSelectorLabel}>Select Team:</MobileBody>
+              <View style={styles.teamSelectorButtons}>
+                {teams.map(team => (
+                  <Pressable
+                    key={team.id}
+                    style={[
+                      styles.teamSelectorButton,
+                      selectedTeamForAssignment === team.id && styles.teamSelectorButtonActive,
+                      { borderLeftColor: team.color }
+                    ]}
+                    onPress={() => setSelectedTeamForAssignment(team.id)}
+                  >
+                    <MobileBody style={[
+                      styles.teamSelectorButtonText,
+                      selectedTeamForAssignment === team.id && styles.teamSelectorButtonTextActive
+                    ]}>
+                      {team.name}
+                    </MobileBody>
+                    <MobileCaption style={styles.teamSelectorCount}>
+                      ({team.athletes.length})
+                    </MobileCaption>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+
+            {/* Athlete Selection */}
+            <View style={styles.athleteSelectionSection}>
+              <MobileBody style={styles.athleteSelectionLabel}>
+                Select Athletes ({selectedAthletes.length} selected):
+              </MobileBody>
+              <ScrollView style={styles.athleteSelectionList}>
+                {getUnassignedAthletes().map(athlete => (
+                  <Pressable
+                    key={athlete.id}
+                    style={[
+                      styles.athleteSelectionItem,
+                      selectedAthletes.includes(athlete.id) && styles.athleteSelectionItemActive
+                    ]}
+                    onPress={() => toggleAthleteSelection(athlete.id)}
+                  >
+                    <View style={styles.athleteSelectionCheckbox}>
+                      {selectedAthletes.includes(athlete.id) && (
+                        <Text style={styles.athleteSelectionCheckmark}>✓</Text>
+                      )}
+                    </View>
+                    <View style={styles.athleteSelectionInfo}>
+                      <MobileBody style={styles.athleteSelectionName}>{athlete.name}</MobileBody>
+                      <View style={styles.athleteSelectionBadges}>
+                        {athlete.gender && (
+                          <View style={[
+                            styles.athleteSelectionGenderBadge,
+                            athlete.gender === 'Male' ? styles.genderMale : styles.genderFemale
+                          ]}>
+                            <Text style={styles.athleteSelectionGenderIcon}>
+                              {athlete.gender === 'Male' ? '♂' : '♀'}
+                            </Text>
+                          </View>
+                        )}
+                        <View style={styles.athleteSelectionTierBadge}>
+                          <MobileCaption style={styles.athleteSelectionTierText}>{athlete.tier}</MobileCaption>
+                        </View>
+                      </View>
+                    </View>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </View>
+
+            {/* Assign Button */}
+            <ButtonPrimary
+              onPress={assignSelectedAthletes}
+              disabled={selectedAthletes.length === 0}
+              style={styles.assignButton}
+            >
+              Assign to {teams.find(t => t.id === selectedTeamForAssignment)?.name || 'Team'}
+            </ButtonPrimary>
+          </Card>
+        )}
 
         {/* Teams Display */}
         {teams.length > 0 && (
@@ -862,6 +1097,167 @@ const styles = StyleSheet.create({
     color: styleTokens.colors.white,
     fontSize: scale(16),
     fontWeight: '600',
+  },
+  // Manual assignment styles
+  modeToggleContainer: {
+    flexDirection: 'row',
+    gap: scale(8),
+    marginBottom: scale(16),
+    padding: scale(4),
+    backgroundColor: styleTokens.colors.surface,
+    borderRadius: scale(8),
+  },
+  modeToggleButton: {
+    flex: 1,
+    paddingVertical: scale(12),
+    paddingHorizontal: scale(16),
+    borderRadius: scale(6),
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+  },
+  modeToggleButtonActive: {
+    backgroundColor: styleTokens.colors.primary,
+  },
+  modeToggleText: {
+    color: styleTokens.colors.textSecondary,
+    fontSize: scale(14),
+    fontWeight: '600',
+  },
+  modeToggleTextActive: {
+    color: styleTokens.colors.white,
+  },
+  manualAssignmentCard: {
+    padding: scale(20),
+    borderRadius: scale(12),
+    ...styleTokens.shadows.md,
+    marginBottom: scale(16),
+  },
+  teamSelectorSection: {
+    marginBottom: scale(20),
+  },
+  teamSelectorLabel: {
+    color: styleTokens.colors.textSecondary,
+    marginBottom: scale(12),
+    fontWeight: '600',
+  },
+  teamSelectorButtons: {
+    gap: scale(8),
+  },
+  teamSelectorButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: scale(14),
+    backgroundColor: styleTokens.colors.surface,
+    borderRadius: scale(8),
+    borderLeftWidth: scale(4),
+    borderWidth: 1,
+    borderColor: styleTokens.colors.border,
+  },
+  teamSelectorButtonActive: {
+    backgroundColor: styleTokens.colors.primaryLight,
+    borderColor: styleTokens.colors.primary,
+  },
+  teamSelectorButtonText: {
+    color: styleTokens.colors.textPrimary,
+    fontSize: scale(16),
+    fontWeight: '500',
+  },
+  teamSelectorButtonTextActive: {
+    color: styleTokens.colors.white,
+    fontWeight: '600',
+  },
+  teamSelectorCount: {
+    color: styleTokens.colors.textSecondary,
+    fontSize: scale(14),
+  },
+  athleteSelectionSection: {
+    marginBottom: scale(20),
+  },
+  athleteSelectionLabel: {
+    color: styleTokens.colors.textSecondary,
+    marginBottom: scale(12),
+    fontWeight: '600',
+  },
+  athleteSelectionList: {
+    maxHeight: scale(300),
+  },
+  athleteSelectionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: scale(12),
+    backgroundColor: styleTokens.colors.surface,
+    borderRadius: scale(8),
+    marginBottom: scale(8),
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  athleteSelectionItemActive: {
+    backgroundColor: styleTokens.colors.primaryLight,
+    borderColor: styleTokens.colors.primary,
+  },
+  athleteSelectionCheckbox: {
+    width: scale(24),
+    height: scale(24),
+    borderRadius: scale(4),
+    borderWidth: 2,
+    borderColor: styleTokens.colors.border,
+    marginRight: scale(12),
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: styleTokens.colors.background,
+  },
+  athleteSelectionCheckmark: {
+    color: styleTokens.colors.primary,
+    fontSize: scale(18),
+    fontWeight: 'bold',
+  },
+  athleteSelectionInfo: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  athleteSelectionName: {
+    color: styleTokens.colors.textPrimary,
+    fontSize: scale(16),
+    flex: 1,
+  },
+  athleteSelectionBadges: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(6),
+  },
+  athleteSelectionGenderBadge: {
+    width: scale(24),
+    height: scale(24),
+    borderRadius: scale(12),
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1.5,
+  },
+  athleteSelectionGenderIcon: {
+    fontSize: scale(14),
+    color: styleTokens.colors.white,
+    fontWeight: 'bold',
+  },
+  athleteSelectionTierBadge: {
+    paddingHorizontal: scale(8),
+    paddingVertical: scale(4),
+    borderRadius: scale(12),
+    backgroundColor: styleTokens.colors.primaryLight,
+    borderWidth: 1,
+    borderColor: 'rgba(100, 226, 211, 0.6)',
+  },
+  athleteSelectionTierText: {
+    color: styleTokens.colors.textPrimary,
+    fontSize: scale(12),
+    fontWeight: '700',
+  },
+  assignButton: {
+    width: '100%',
+    marginTop: scale(8),
   },
 });
 
