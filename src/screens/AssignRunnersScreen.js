@@ -34,6 +34,7 @@ const AssignRunnersScreen = ({ route, navigation }) => {
   const [isSaving, setIsSaving] = useState(false);
   const [showIncompleteConfirm, setShowIncompleteConfirm] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [genderFilter, setGenderFilter] = useState('mixed'); // 'mixed', 'male', 'female'
 
   const isRelay = isRelayEvent(eventName);
   const requiredAthletes = isRelay ? getRelayAthleteCount(eventName) : 1;
@@ -89,8 +90,16 @@ const AssignRunnersScreen = ({ route, navigation }) => {
   };
 
   const getAvailableAthletes = (team) => {
-    // Show all athletes, but we'll handle the used/disabled state in the render
-    return team.athletes;
+    let athletes = team.athletes;
+    
+    // Apply gender filter
+    if (genderFilter === 'male') {
+      athletes = athletes.filter(a => a.gender === 'Male');
+    } else if (genderFilter === 'female') {
+      athletes = athletes.filter(a => a.gender === 'Female');
+    }
+    
+    return athletes;
   };
 
   const handleAthleteToggle = (teamId, athleteId) => {
@@ -323,6 +332,34 @@ const AssignRunnersScreen = ({ route, navigation }) => {
             {isRelay ? `Select ${requiredAthletes} athletes per team` : 'Select 1 athlete per team'}
           </MobileBody>
           
+          {/* Gender Filter */}
+          <View style={styles.genderFilterContainer}>
+            <MobileCaption style={styles.genderFilterLabel}>Gender Filter:</MobileCaption>
+            <View style={styles.genderFilterButtons}>
+              {[
+                { value: 'mixed', label: 'Mixed' },
+                { value: 'male', label: 'Male Only' },
+                { value: 'female', label: 'Female Only' }
+              ].map(filter => (
+                <Pressable
+                  key={filter.value}
+                  style={[
+                    styles.genderFilterButton,
+                    genderFilter === filter.value && styles.genderFilterButtonActive
+                  ]}
+                  onPress={() => setGenderFilter(filter.value)}
+                >
+                  <MobileCaption style={[
+                    styles.genderFilterButtonText,
+                    genderFilter === filter.value && styles.genderFilterButtonTextActive
+                  ]}>
+                    {filter.label}
+                  </MobileCaption>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+          
           {selectedTeam && (
             <MobileCaption style={styles.usedAthletesNote}>
               {selectedTeam.name}: {getUsedAthletesForTeam(selectedTeam)} of {selectedTeam.athletes.length} athletes used in previous events
@@ -435,12 +472,24 @@ const AssignRunnersScreen = ({ route, navigation }) => {
                         {isSelected && <View style={styles.checkmark} />}
                       </View>
                       <View style={styles.athleteInfo}>
-                        <MobileBody style={[
-                          styles.athleteName,
-                          isUsedElsewhere && styles.athleteNameUsed
-                        ]}>
-                          {athlete.name}
-                        </MobileBody>
+                        <View style={styles.athleteNameRow}>
+                          <MobileBody style={[
+                            styles.athleteName,
+                            isUsedElsewhere && styles.athleteNameUsed
+                          ]}>
+                            {athlete.name}
+                          </MobileBody>
+                          {athlete.gender && (
+                            <View style={[
+                              styles.athleteGenderBadge,
+                              athlete.gender === 'Male' ? styles.genderMale : styles.genderFemale
+                            ]}>
+                              <Text style={styles.athleteGenderIcon}>
+                                {athlete.gender === 'Male' ? '♂' : '♀'}
+                              </Text>
+                            </View>
+                          )}
+                        </View>
                         <MobileCaption style={styles.athleteTier}>
                           {athlete.tier} Tier
                           {athlete.bestEvents && ` • ${athlete.bestEvents}`}
@@ -861,6 +910,67 @@ const styles = StyleSheet.create({
     color: styleTokens.colors.white,
     fontSize: scale(16),
     fontWeight: '600',
+  },
+  // Gender filter styles
+  genderFilterContainer: {
+    marginTop: scale(16),
+    alignItems: 'center',
+    gap: scale(8),
+  },
+  genderFilterLabel: {
+    color: styleTokens.colors.textSecondary,
+    fontWeight: '600',
+  },
+  genderFilterButtons: {
+    flexDirection: 'row',
+    gap: scale(8),
+  },
+  genderFilterButton: {
+    paddingHorizontal: scale(16),
+    paddingVertical: scale(8),
+    borderRadius: scale(8),
+    backgroundColor: styleTokens.colors.surface,
+    borderWidth: 1,
+    borderColor: styleTokens.colors.border,
+  },
+  genderFilterButtonActive: {
+    backgroundColor: styleTokens.colors.primary,
+    borderColor: styleTokens.colors.primary,
+  },
+  genderFilterButtonText: {
+    color: styleTokens.colors.textSecondary,
+    fontSize: scale(12),
+    fontWeight: '600',
+  },
+  genderFilterButtonTextActive: {
+    color: styleTokens.colors.white,
+  },
+  // Gender badge styles
+  athleteNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(8),
+  },
+  athleteGenderBadge: {
+    width: scale(20),
+    height: scale(20),
+    borderRadius: scale(10),
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1.5,
+  },
+  genderMale: {
+    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+    borderColor: 'rgba(59, 130, 246, 0.6)',
+  },
+  genderFemale: {
+    backgroundColor: 'rgba(236, 72, 153, 0.15)',
+    borderColor: 'rgba(236, 72, 153, 0.6)',
+  },
+  athleteGenderIcon: {
+    fontSize: scale(12),
+    color: styleTokens.colors.white,
+    fontWeight: 'bold',
   },
 });
 
