@@ -5,7 +5,8 @@ import {
   ScrollView, 
   Alert,
   Pressable,
-  Text
+  Text,
+  Platform
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import AthleteForm from '../components/AthleteForm';
@@ -488,6 +489,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1.5,
+    overflow: 'hidden',
+    ...Platform.select({
+      web: {
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      },
+    }),
   },
   genderMale: {
     backgroundColor: 'rgba(59, 130, 246, 0.15)',
@@ -500,10 +509,21 @@ const styles = StyleSheet.create({
   genderIcon: {
     fontSize: scale(16),
     lineHeight: scale(16),
-    includeFontPadding: false,
     color: styleTokens.colors.white,
     fontWeight: 'bold',
-    textAlignVertical: 'center',
+    textAlign: 'center',
+    ...Platform.select({
+      android: {
+        includeFontPadding: false,
+        textAlignVertical: 'center',
+      },
+      web: {
+        userSelect: 'none',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      },
+    }),
   },
   bestEvents: {
     fontSize: scale(14),

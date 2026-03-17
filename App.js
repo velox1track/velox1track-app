@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { StatusBar } from 'expo-status-bar';
-import { View, Text, ActivityIndicator, StyleSheet, Platform } from 'react-native';
+import { View, Text, ActivityIndicator, StyleSheet, Platform, Pressable } from 'react-native';
 import { loadfontsAsync } from './src/theme';
 
 // Import web scroll fix - this runs immediately when imported
@@ -64,6 +64,21 @@ export default function App() {
             fontWeight: 'bold',
             fontFamily: 'RobotoMono-Bold',
           },
+          // On web the native back-arrow icon doesn't render in Safari.
+          // Provide a simple text arrow for web only; native keeps its default.
+          ...(Platform.OS === 'web' && {
+            headerLeft: ({ canGoBack, onPress }) =>
+              canGoBack ? (
+                <Pressable
+                  onPress={onPress}
+                  style={styles.webBackButton}
+                  accessibilityRole="button"
+                  accessibilityLabel="Go back"
+                >
+                  <Text style={styles.webBackArrow}>{'←'}</Text>
+                </Pressable>
+              ) : null,
+          }),
         }}
       >
         <Stack.Screen
@@ -118,5 +133,15 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: '#080A0B',
     fontFamily: 'System',
+  },
+  webBackButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    justifyContent: 'center',
+  },
+  webBackArrow: {
+    fontSize: 22,
+    color: '#080A0B',
+    fontWeight: '600',
   },
 }); 

@@ -24,7 +24,13 @@
       }
     },
     "web": {
-      "bundler": "metro"
+      "bundler": "metro",
+      "name": "Velox 1 Race Roulette",
+      "shortName": "Velox 1",
+      "description": "Race Roulette and Team Builder for track and field coaches",
+      "themeColor": "#2c3e50",
+      "backgroundColor": "#2c3e50",
+      "lang": "en"
     },
     "plugins": [
       "expo-font",
