@@ -365,23 +365,26 @@ const styles = StyleSheet.create({
   },
   tierSummary: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    flexWrap: 'wrap',
+    justifyContent: 'space-evenly',
     marginBottom: scale(16),
     padding: scale(16),
     backgroundColor: styleTokens.colors.surface,
     borderRadius: scale(8),
+    overflow: 'hidden',
   },
   tierItem: {
     alignItems: 'center',
+    paddingHorizontal: scale(8),
   },
   genderSummary: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: scale(24),
+    flexDirection: 'column',
+    gap: scale(10),
     marginBottom: scale(20),
     padding: scale(16),
     backgroundColor: styleTokens.colors.surface,
     borderRadius: scale(8),
+    overflow: 'hidden',
   },
   genderSummaryItem: {
     flexDirection: 'row',
@@ -397,9 +400,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: scale(12),
     paddingVertical: scale(6),
     borderRadius: scale(12),
-    minWidth: scale(60),
     alignItems: 'center',
     marginBottom: scale(4),
+    alignSelf: 'center',
   },
   tierHigh: {
     backgroundColor: 'rgba(100, 226, 211, 0.25)',
@@ -496,8 +499,11 @@ const styles = StyleSheet.create({
   },
   genderIcon: {
     fontSize: scale(16),
+    lineHeight: scale(16),
+    includeFontPadding: false,
     color: styleTokens.colors.white,
     fontWeight: 'bold',
+    textAlignVertical: 'center',
   },
   bestEvents: {
     fontSize: scale(14),
