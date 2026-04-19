@@ -13,7 +13,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import EventCard from '../components/EventCard';
 import { generateEventSequence, getDefaultEventPool } from '../lib/randomizer';
-import { loadEventAssignments, isEventFullyAssigned, clearAllAssignments } from '../lib/eventAssignments';
+import { loadEventAssignments, isEventFullyAssigned, clearAllAssignments, generateLaneAssignments, rerollUnlockedLanes, getLaneAssignmentsForEvent, saveLaneAssignments } from '../lib/eventAssignments';
 import eventBus from '../lib/eventBus';
 import { MobileH1, MobileH2, MobileBody, MobileCaption } from '../components/Typography';
 import { Card } from '../components/Card';
@@ -38,16 +38,47 @@ const RaceRouletteScreen = ({ navigation }) => {
   const [teams, setTeams] = useState([]);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
 
+  // Lane assignment state
+  const [showLaneModal, setShowLaneModal] = useState(false);
+  const [laneEventIndex, setLaneEventIndex] = useState(null);
+  const [pendingLaneAssignments, setPendingLaneAssignments] = useState([]);
+
+  // Event action modal (Edit Athletes vs Manage Lanes)
+  const [showEventActionModal, setShowEventActionModal] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState(null);
+
   // Load saved state on component mount
   useEffect(() => {
     loadSavedState();
   }, []);
 
-  // Reload assignments when screen comes into focus
+  // Reload assignments when screen comes into focus; auto-open lane modal if triggered by athlete save
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', async () => {
-      const assignmentsData = await loadEventAssignments();
+      const [assignmentsData, teamsRaw, pendingIdx] = await Promise.all([
+        loadEventAssignments(),
+        AsyncStorage.getItem('teams'),
+        AsyncStorage.getItem('pendingLaneEventIndex'),
+      ]);
+
+      const freshTeams = teamsRaw ? JSON.parse(teamsRaw) : [];
       setAssignments(assignmentsData);
+      setTeams(freshTeams);
+
+      if (pendingIdx !== null) {
+        await AsyncStorage.removeItem('pendingLaneEventIndex');
+        const idx = parseInt(pendingIdx, 10);
+        const eventRecord = assignmentsData.find(a => a.eventIndex === idx);
+        if (eventRecord) {
+          const existing = getLaneAssignmentsForEvent(assignmentsData, idx);
+          const lanes = existing ?? generateLaneAssignments(eventRecord, freshTeams);
+          if (lanes && lanes.length > 0) {
+            setPendingLaneAssignments(lanes);
+            setLaneEventIndex(idx);
+            setShowLaneModal(true);
+          }
+        }
+      }
     });
 
     return unsubscribe;
@@ -206,7 +237,14 @@ const RaceRouletteScreen = ({ navigation }) => {
   };
 
   const handleEventCardPress = (eventIndex, eventName) => {
-    handleAssignAthletes(eventIndex, eventName);
+    if (isEventFullyAssigned(assignments, eventIndex, teams)) {
+      // Event already has athletes — let coach choose what to do next
+      setSelectedEvent({ index: eventIndex, name: eventName });
+      setShowEventActionModal(true);
+    } else {
+      // No athletes yet — go straight to assignment
+      handleAssignAthletes(eventIndex, eventName);
+    }
   };
 
   const resetSequence = () => {
@@ -245,6 +283,58 @@ const RaceRouletteScreen = ({ navigation }) => {
       return eventSequence[revealedIndex];
     }
     return null;
+  };
+
+  // ─── Lane Assignment Handlers ───────────────────────────────────────────────
+
+  const handleOpenLaneModal = (eventIndex) => {
+    const eventRecord = assignments.find(a => a.eventIndex === eventIndex);
+    if (!eventRecord) return;
+
+    const existing = getLaneAssignmentsForEvent(assignments, eventIndex);
+    if (existing) {
+      setPendingLaneAssignments(existing);
+    } else {
+      const generated = generateLaneAssignments(eventRecord, teams);
+      if (generated.length === 0) {
+        Alert.alert('No Runners', 'No athletes are assigned to this event yet.');
+        return;
+      }
+      setPendingLaneAssignments(generated);
+    }
+    setLaneEventIndex(eventIndex);
+    setShowLaneModal(true);
+  };
+
+  const handleRerollAll = () => {
+    const eventRecord = assignments.find(a => a.eventIndex === laneEventIndex);
+    if (!eventRecord) return;
+    const fresh = generateLaneAssignments(eventRecord, teams);
+    setPendingLaneAssignments(fresh);
+  };
+
+  const handleRerollUnlocked = () => {
+    setPendingLaneAssignments(prev => rerollUnlockedLanes(prev));
+  };
+
+  const toggleLaneLock = (idx) => {
+    setPendingLaneAssignments(prev =>
+      prev.map((la, i) => i === idx ? { ...la, locked: !la.locked } : la)
+    );
+  };
+
+  const handleSaveLanes = async () => {
+    const updated = await saveLaneAssignments(assignments, laneEventIndex, pendingLaneAssignments);
+    setAssignments(updated);
+    setShowLaneModal(false);
+    setPendingLaneAssignments([]);
+    setLaneEventIndex(null);
+  };
+
+  const handleCancelLanes = () => {
+    setShowLaneModal(false);
+    setPendingLaneAssignments([]);
+    setLaneEventIndex(null);
   };
 
   return (
@@ -395,6 +485,18 @@ const RaceRouletteScreen = ({ navigation }) => {
                   >
                     {isEventFullyAssigned(assignments, revealedIndex - 1, teams) ? 'Edit Athletes' : 'Assign Athletes'}
                   </ButtonPrimary>
+                  {isEventFullyAssigned(assignments, revealedIndex - 1, teams) && (
+                    <Pressable
+                      style={styles.lanesButton}
+                      onPress={() => handleOpenLaneModal(revealedIndex - 1)}
+                    >
+                      <Text style={styles.lanesButtonText}>
+                        {getLaneAssignmentsForEvent(assignments, revealedIndex - 1)
+                          ? 'Edit Lanes'
+                          : 'Generate Lanes'}
+                      </Text>
+                    </Pressable>
+                  )}
                 </View>
               )}
             </View>
@@ -446,6 +548,111 @@ const RaceRouletteScreen = ({ navigation }) => {
           </Card>
         )}
       </ScrollView>
+
+      {/* Lane Assignment Modal */}
+      {showLaneModal && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.laneModalContent}>
+            <MobileH2 style={styles.laneModalTitle}>Lane Assignments</MobileH2>
+            <MobileCaption style={styles.laneModalSubtitle}>
+              {laneEventIndex !== null ? eventSequence[laneEventIndex] : ''}
+            </MobileCaption>
+            <MobileCaption style={styles.laneModalHint}>
+              Tap toggle to lock a lane from re-rolling
+            </MobileCaption>
+
+            <ScrollView
+              style={styles.laneScrollView}
+              showsVerticalScrollIndicator={true}
+              nestedScrollEnabled={true}
+            >
+              {pendingLaneAssignments.map((la, idx) => (
+                <View
+                  key={la.teamId}
+                  style={[styles.laneRow, la.locked && styles.laneRowLocked]}
+                >
+                  <Pressable
+                    style={[styles.laneToggle, la.locked && styles.laneToggleLocked]}
+                    onPress={() => toggleLaneLock(idx)}
+                    accessibilityLabel={la.locked ? 'Unlock lane' : 'Lock lane'}
+                  >
+                    <View style={[styles.laneToggleCircle, la.locked && styles.laneToggleCircleLocked]} />
+                  </Pressable>
+                  <View style={styles.laneBadge}>
+                    <Text style={styles.laneNumber}>{la.lane}</Text>
+                  </View>
+                  <MobileBody style={styles.laneParticipant} numberOfLines={2}>
+                    {la.athleteName ? `${la.athleteName} (${la.teamName})` : la.teamName}
+                  </MobileBody>
+                </View>
+              ))}
+            </ScrollView>
+
+            <View style={styles.laneRerollRow}>
+              <Pressable style={styles.rerollUnlockedBtn} onPress={handleRerollUnlocked}>
+                <Text style={styles.rerollUnlockedBtnText}>Re-roll Unlocked</Text>
+              </Pressable>
+              <Pressable style={styles.rerollAllBtn} onPress={handleRerollAll}>
+                <Text style={styles.rerollAllBtnText}>Re-roll All</Text>
+              </Pressable>
+            </View>
+
+            <View style={styles.modalButtons}>
+              <Pressable style={styles.laneModalButtonCancel} onPress={handleCancelLanes}>
+                <Text style={styles.laneModalButtonTextCancel}>Cancel</Text>
+              </Pressable>
+              <Pressable style={styles.laneModalButtonSave} onPress={handleSaveLanes}>
+                <Text style={styles.laneModalButtonTextSave}>Save Lanes</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/* Event Action Modal — choose Edit Athletes or Manage Lanes */}
+      {showEventActionModal && selectedEvent && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <MobileCaption style={styles.eventActionEventNum}>
+              Event #{selectedEvent.index + 1}
+            </MobileCaption>
+            <MobileH2 style={styles.modalTitle}>{selectedEvent.name}</MobileH2>
+
+            <View style={styles.eventActionButtons}>
+              <Pressable
+                style={styles.eventActionBtnAthletes}
+                onPress={() => {
+                  setShowEventActionModal(false);
+                  handleAssignAthletes(selectedEvent.index, selectedEvent.name);
+                }}
+              >
+                <Text style={styles.eventActionBtnAthletesText}>Edit Athletes</Text>
+              </Pressable>
+
+              <Pressable
+                style={styles.eventActionBtnLanes}
+                onPress={() => {
+                  setShowEventActionModal(false);
+                  handleOpenLaneModal(selectedEvent.index);
+                }}
+              >
+                <Text style={styles.eventActionBtnLanesText}>
+                  {getLaneAssignmentsForEvent(assignments, selectedEvent.index)
+                    ? 'Edit Lanes'
+                    : 'Generate Lanes'}
+                </Text>
+              </Pressable>
+
+              <Pressable
+                style={styles.eventActionBtnCancel}
+                onPress={() => setShowEventActionModal(false)}
+              >
+                <Text style={styles.eventActionBtnCancelText}>Cancel</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      )}
 
       {/* Reset Confirmation Modal */}
       {showResetConfirm && (
@@ -965,13 +1172,290 @@ const styles = StyleSheet.create({
   },
   modalButtonTextCancel: {
     color: styleTokens.colors.textPrimary,
-    fontSize: scale(16),
-    fontWeight: '600',
+    fontSize: scale(14),
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    fontFamily: styleTokens.typography.fonts.robotoMono,
+    letterSpacing: styleTokens.typography.letterSpacing.wide,
   },
   modalButtonTextConfirm: {
     color: styleTokens.colors.white,
+    fontSize: scale(14),
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    fontFamily: styleTokens.typography.fonts.robotoMono,
+    letterSpacing: styleTokens.typography.letterSpacing.wide,
+  },
+
+  // ─── Lane Modal Styles ───────────────────────────────────────────────────────
+  laneModalContent: {
+    backgroundColor: 'rgba(30, 40, 50, 0.98)',
+    borderRadius: scale(12),
+    borderWidth: 2,
+    borderColor: 'rgba(100, 226, 211, 0.4)',
+    padding: scale(24),
+    width: '90%',
+    maxWidth: scale(440),
+    maxHeight: '85%',
+    ...styleTokens.shadows.lg,
+  },
+  laneModalTitle: {
+    color: styleTokens.colors.white,
+    marginBottom: scale(8),
+    textAlign: 'center',
+  },
+  laneModalSubtitle: {
+    color: 'rgba(255, 255, 255, 0.6)',
+    textAlign: 'center',
+    marginBottom: scale(8),
+    fontSize: scale(13),
+  },
+  laneModalHint: {
+    color: 'rgba(255, 255, 255, 0.4)',
+    textAlign: 'center',
+    marginBottom: scale(14),
+    fontSize: scale(11),
+    fontStyle: 'italic',
+  },
+  laneScrollView: {
+    maxHeight: scale(260),
+    marginBottom: scale(12),
+  },
+  laneRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: scale(10),
+    paddingHorizontal: scale(10),
+    borderRadius: scale(8),
+    backgroundColor: 'rgba(255, 255, 255, 0.07)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    marginBottom: scale(8),
+    gap: scale(10),
+  },
+  laneRowLocked: {
+    backgroundColor: styleTokens.colors.primaryLight,
+    borderColor: styleTokens.colors.primary,
+  },
+  lockBtn: {
+    width: scale(32),
+    height: scale(32),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  lockIcon: {
     fontSize: scale(16),
+  },
+  laneToggle: {
+    width: scale(36),
+    height: scale(20),
+    borderRadius: scale(10),
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+    backgroundColor: 'rgba(159, 167, 174, 0.4)',
+    paddingHorizontal: scale(2),
+  },
+  laneToggleLocked: {
+    backgroundColor: styleTokens.colors.primary,
+    borderColor: styleTokens.colors.primary,
+    alignItems: 'flex-end',
+  },
+  laneToggleCircle: {
+    width: scale(16),
+    height: scale(16),
+    borderRadius: scale(8),
+    backgroundColor: 'rgba(255, 255, 255, 0.85)',
+    shadowColor: 'rgba(0, 0, 0, 0.2)',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  laneToggleCircleLocked: {
+    backgroundColor: styleTokens.colors.white,
+  },
+  laneBadge: {
+    paddingHorizontal: scale(12),
+    paddingVertical: scale(5),
+    borderRadius: scale(10),
+    backgroundColor: 'rgba(100, 226, 211, 0.8)',
+    borderWidth: 1,
+    borderColor: styleTokens.colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: scale(44),
+  },
+  laneNumber: {
+    fontSize: scale(14),
+    fontWeight: '800',
+    color: styleTokens.colors.textPrimary,
+    fontFamily: styleTokens.typography.fonts.robotoMono,
+    letterSpacing: styleTokens.typography.letterSpacing.wide,
+  },
+  laneParticipant: {
+    flex: 1,
+    color: styleTokens.colors.white,
+    fontSize: scale(14),
+  },
+  laneRerollRow: {
+    flexDirection: 'row',
+    gap: scale(10),
+    marginBottom: scale(14),
+  },
+  rerollUnlockedBtn: {
+    flex: 1,
+    backgroundColor: styleTokens.colors.primaryDark,
+    paddingVertical: scale(12),
+    paddingHorizontal: scale(8),
+    borderRadius: scale(8),
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: scale(44),
+  },
+  rerollUnlockedBtnText: {
+    color: styleTokens.colors.white,
+    fontSize: scale(12),
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    fontFamily: styleTokens.typography.fonts.robotoMono,
+    letterSpacing: styleTokens.typography.letterSpacing.wide,
+  },
+  rerollAllBtn: {
+    flex: 1,
+    backgroundColor: styleTokens.colors.primary,
+    paddingVertical: scale(12),
+    paddingHorizontal: scale(8),
+    borderRadius: scale(8),
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: scale(44),
+  },
+  rerollAllBtnText: {
+    color: styleTokens.colors.textPrimary,
+    fontSize: scale(12),
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    fontFamily: styleTokens.typography.fonts.robotoMono,
+    letterSpacing: styleTokens.typography.letterSpacing.wide,
+  },
+  laneModalButtonCancel: {
+    flex: 1,
+    backgroundColor: styleTokens.colors.primaryDark,
+    paddingVertical: scale(12),
+    paddingHorizontal: scale(20),
+    borderRadius: scale(8),
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: scale(48),
+  },
+  laneModalButtonTextCancel: {
+    color: styleTokens.colors.white,
+    fontSize: scale(14),
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    fontFamily: styleTokens.typography.fonts.robotoMono,
+    letterSpacing: styleTokens.typography.letterSpacing.wide,
+  },
+  laneModalButtonSave: {
+    flex: 1,
+    backgroundColor: styleTokens.colors.primary,
+    paddingVertical: scale(12),
+    paddingHorizontal: scale(20),
+    borderRadius: scale(8),
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: scale(48),
+  },
+  laneModalButtonTextSave: {
+    color: styleTokens.colors.textPrimary,
+    fontSize: scale(14),
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    fontFamily: styleTokens.typography.fonts.robotoMono,
+    letterSpacing: styleTokens.typography.letterSpacing.wide,
+  },
+  lanesButton: {
+    minWidth: scale(160),
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    borderWidth: 1.5,
+    borderColor: styleTokens.colors.primary,
+    borderRadius: scale(8),
+    paddingVertical: scale(12),
+    paddingHorizontal: scale(24),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  lanesButtonText: {
+    color: styleTokens.colors.primary,
+    fontSize: scale(13),
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    fontFamily: styleTokens.typography.fonts.roboto || 'System',
+  },
+
+  // ─── Event Action Modal Styles ────────────────────────────────────────────────
+  eventActionEventNum: {
+    color: styleTokens.colors.textMuted,
+    textAlign: 'center',
+    marginBottom: scale(4),
+    fontSize: scale(12),
     fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  eventActionButtons: {
+    gap: scale(10),
+    marginTop: scale(8),
+  },
+  eventActionBtnAthletes: {
+    backgroundColor: styleTokens.colors.border,
+    paddingVertical: scale(14),
+    paddingHorizontal: scale(20),
+    borderRadius: scale(8),
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: scale(48),
+  },
+  eventActionBtnAthletesText: {
+    color: styleTokens.colors.textPrimary,
+    fontSize: scale(14),
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    fontFamily: styleTokens.typography.fonts.robotoMono,
+    letterSpacing: styleTokens.typography.letterSpacing.wide,
+  },
+  eventActionBtnLanes: {
+    backgroundColor: styleTokens.colors.primary,
+    paddingVertical: scale(14),
+    paddingHorizontal: scale(20),
+    borderRadius: scale(8),
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: scale(48),
+  },
+  eventActionBtnLanesText: {
+    color: styleTokens.colors.textPrimary,
+    fontSize: scale(14),
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    fontFamily: styleTokens.typography.fonts.robotoMono,
+    letterSpacing: styleTokens.typography.letterSpacing.wide,
+  },
+  eventActionBtnCancel: {
+    paddingVertical: scale(10),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  eventActionBtnCancelText: {
+    color: styleTokens.colors.textMuted,
+    fontSize: scale(12),
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    fontFamily: styleTokens.typography.fonts.robotoMono,
+    letterSpacing: styleTokens.typography.letterSpacing.wide,
   },
 });
 

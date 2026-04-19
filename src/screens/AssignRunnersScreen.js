@@ -19,7 +19,8 @@ import {
   getUsedAthleteIdsExcludingEvent,
   isRelayEvent,
   getRelayAthleteCount,
-  getTeamAssignmentForEvent
+  getTeamAssignmentForEvent,
+  preserveLanesByTeam
 } from '../lib/eventAssignments';
 
 const AssignRunnersScreen = ({ route, navigation }) => {
@@ -233,6 +234,19 @@ const AssignRunnersScreen = ({ route, navigation }) => {
       })).filter(ta => ta.athleteIds.length > 0); // Save teams with athletes OR "not running" marker
       
       console.log('Team assignments:', teamAssignments);
+
+      // Preserve lane assignments when editing athletes.
+      // Each team's lane number stays the same; only the athlete name is refreshed.
+      const existingEventRecord = assignments.find(a => a.eventIndex === eventIndex);
+      let lanesToSave = null;
+      if (existingEventRecord?.laneAssignments?.length > 0) {
+        lanesToSave = preserveLanesByTeam(
+          existingEventRecord.laneAssignments,
+          teamAssignments,
+          teams,
+          isRelay
+        );
+      }
       
       // Save assignments
       console.log('Calling setAssignmentForEvent...');
@@ -241,7 +255,8 @@ const AssignRunnersScreen = ({ route, navigation }) => {
         eventIndex, 
         eventName, 
         isRelay, 
-        teamAssignments
+        teamAssignments,
+        lanesToSave
       );
       
       console.log('setAssignmentForEvent completed');
@@ -252,9 +267,9 @@ const AssignRunnersScreen = ({ route, navigation }) => {
         return;
       }
       
-      // Successfully saved - navigate back to Race Roulette screen
-      console.log('Assignments saved successfully, navigating back...');
-      
+      // Successfully saved - signal Race Roulette to auto-open lane modal
+      await AsyncStorage.setItem('pendingLaneEventIndex', String(eventIndex));
+
       // Use a small delay to ensure state is saved before navigation
       setTimeout(() => {
         console.log('Navigating to RaceRoulette');
