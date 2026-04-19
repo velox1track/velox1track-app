@@ -23,6 +23,7 @@
         height: 100%;
         margin: 0;
         padding: 0;
+        touch-action: manipulation;
       }
       body {
         overflow: auto;
@@ -41,6 +42,29 @@
       You need to enable JavaScript to run this app.
     </noscript>
     <div id="root"></div>
+
+    <!-- Prevent pinch-to-zoom on iOS Safari (ignores viewport user-scalable=no) -->
+    <script>
+      document.addEventListener('touchmove', function(e) {
+        if (e.touches.length > 1) e.preventDefault();
+      }, { passive: false });
+
+      document.addEventListener('touchstart', function(e) {
+        if (e.touches.length > 1) e.preventDefault();
+      }, { passive: false });
+
+      document.addEventListener('gesturestart', function(e) {
+        e.preventDefault();
+      }, { passive: false });
+
+      document.addEventListener('gesturechange', function(e) {
+        e.preventDefault();
+      }, { passive: false });
+
+      document.addEventListener('gestureend', function(e) {
+        e.preventDefault();
+      }, { passive: false });
+    </script>
 
     <!-- Register the service worker for offline support -->
     <script>

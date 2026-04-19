@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   View, 
   StyleSheet, 
@@ -30,6 +30,9 @@ const ScoreboardScreen = ({ navigation }) => {
   const [scoringSettings, setScoringSettings] = useState({ places: [] }); // Load from Settings
   const [expandedEvents, setExpandedEvents] = useState(new Set()); // Track which events are expanded
   const [showResetAllConfirm, setShowResetAllConfirm] = useState(false);
+
+  const scrollViewRef = useRef(null);
+  const formRef = useRef(null);
 
   // Default scoring table (fallback if Settings not configured)
   const defaultScoringTable = {
@@ -187,6 +190,16 @@ const ScoreboardScreen = ({ navigation }) => {
 
     setSelectedEvent({ event, eventIndex });
     setShowResultForm(true);
+
+    setTimeout(() => {
+      // scrollIntoView is the most reliable cross-browser approach for web/PWA
+      if (formRef.current?.scrollIntoView) {
+        formRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } else {
+        // Native fallback
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      }
+    }, 300);
   };
 
   const toggleEventExpansion = (eventIndex) => {
@@ -309,6 +322,7 @@ const ScoreboardScreen = ({ navigation }) => {
   return (
     <View style={styles.container}>
       <ScrollView 
+        ref={scrollViewRef}
         style={styles.scrollView} 
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={true}
@@ -476,17 +490,19 @@ const ScoreboardScreen = ({ navigation }) => {
         )}
 
         {showResultForm && selectedEvent && (
-          <EventResultForm
-            eventName={typeof selectedEvent.event === 'string' ? selectedEvent.event : (selectedEvent.event?.name || 'Event')}
-            teams={teams}
-            eventIndex={selectedEvent.eventIndex}
-            assignments={assignments}
-            initialPlacements={eventResults.find(r => r.eventIndex === selectedEvent.eventIndex)?.placements}
-            initialInfractions={eventResults.find(r => r.eventIndex === selectedEvent.eventIndex)?.infractions}
-            infractionPresets={infractionPresets}
-            onSubmit={(data) => submitEventResult(data)}
-            onCancel={() => { setShowResultForm(false); setSelectedEvent(null); }}
-          />
+          <View ref={formRef}>
+            <EventResultForm
+              eventName={typeof selectedEvent.event === 'string' ? selectedEvent.event : (selectedEvent.event?.name || 'Event')}
+              teams={teams}
+              eventIndex={selectedEvent.eventIndex}
+              assignments={assignments}
+              initialPlacements={eventResults.find(r => r.eventIndex === selectedEvent.eventIndex)?.placements}
+              initialInfractions={eventResults.find(r => r.eventIndex === selectedEvent.eventIndex)?.infractions}
+              infractionPresets={infractionPresets}
+              onSubmit={(data) => submitEventResult(data)}
+              onCancel={() => { setShowResultForm(false); setSelectedEvent(null); }}
+            />
+          </View>
         )}
 
         {/* Instructions */}
