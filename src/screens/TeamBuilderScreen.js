@@ -6,6 +6,8 @@ import {
   Alert,
   Pressable,
   Text,
+  TextInput,
+  TouchableOpacity,
   Platform
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -23,6 +25,12 @@ const TeamBuilderScreen = () => {
   const [showClearAllConfirm, setShowClearAllConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [athleteToDelete, setAthleteToDelete] = useState(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [athleteToEdit, setAthleteToEdit] = useState(null);
+  const [editName, setEditName] = useState('');
+  const [editGender, setEditGender] = useState('Male');
+  const [editTier, setEditTier] = useState('Med');
+  const [editBestEvents, setEditBestEvents] = useState('');
 
   // Load saved athletes on component mount
   useEffect(() => {
@@ -97,6 +105,36 @@ const TeamBuilderScreen = () => {
   const handleClearAllCancel = () => {
     console.log('Clear all cancelled');
     setShowClearAllConfirm(false);
+  };
+
+  const openEditModal = (athlete) => {
+    setAthleteToEdit(athlete);
+    setEditName(athlete.name);
+    setEditGender(athlete.gender || 'Male');
+    setEditTier(athlete.tier);
+    setEditBestEvents(athlete.bestEvents || '');
+    setShowEditModal(true);
+  };
+
+  const handleEditSave = () => {
+    if (!editName.trim()) {
+      Alert.alert('Error', 'Please enter an athlete name');
+      return;
+    }
+    const updatedAthletes = athletes.map((a) =>
+      a.id === athleteToEdit.id
+        ? { ...a, name: editName.trim(), gender: editGender, tier: editTier, bestEvents: editBestEvents.trim() || null }
+        : a
+    );
+    setAthletes(updatedAthletes);
+    saveAthletes(updatedAthletes);
+    setShowEditModal(false);
+    setAthleteToEdit(null);
+  };
+
+  const handleEditCancel = () => {
+    setShowEditModal(false);
+    setAthleteToEdit(null);
   };
 
   const getTierCount = (tier) => {
@@ -222,9 +260,14 @@ const TeamBuilderScreen = () => {
                   {athlete.bestEvents && (
                     <MobileCaption style={styles.bestEvents} numberOfLines={2}>{athlete.bestEvents}</MobileCaption>
                   )}
-                  <ButtonSecondary onPress={() => deleteAthlete(athlete.id)}>
-                    Delete
-                  </ButtonSecondary>
+                  <View style={styles.cardActions}>
+                    <Pressable style={styles.editButton} onPress={() => openEditModal(athlete)}>
+                      <Text style={styles.editButtonText}>Edit</Text>
+                    </Pressable>
+                    <Pressable style={styles.deleteActionButton} onPress={() => deleteAthlete(athlete.id)}>
+                      <Text style={styles.deleteActionButtonText}>Delete</Text>
+                    </Pressable>
+                  </View>
                 </View>
               ))}
             </View>
@@ -246,6 +289,85 @@ const TeamBuilderScreen = () => {
               </Pressable>
               <Pressable style={styles.modalButtonConfirm} onPress={handleClearAllConfirm}>
                 <Text style={styles.modalButtonTextConfirm}>Clear All</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/* Edit Athlete Modal */}
+      {showEditModal && athleteToEdit && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <MobileH2 style={styles.modalTitle}>Edit Athlete</MobileH2>
+
+            {/* Name */}
+            <View style={styles.editFormRow}>
+              <MobileBody style={styles.editLabel}>Name</MobileBody>
+              <TextInput
+                style={styles.editInput}
+                value={editName}
+                onChangeText={setEditName}
+                placeholder="Athlete name"
+                placeholderTextColor={styleTokens.colors.disabled}
+              />
+            </View>
+
+            {/* Gender */}
+            <View style={styles.editFormRow}>
+              <MobileBody style={styles.editLabel}>Gender</MobileBody>
+              <View style={styles.editChipRow}>
+                {['Male', 'Female'].map((g) => (
+                  <TouchableOpacity
+                    key={g}
+                    style={[styles.editChip, editGender === g && styles.editChipActive]}
+                    onPress={() => setEditGender(g)}
+                  >
+                    <MobileCaption style={[styles.editChipText, editGender === g && styles.editChipTextActive]}>
+                      {g}
+                    </MobileCaption>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* Tier */}
+            <View style={styles.editFormRow}>
+              <MobileBody style={styles.editLabel}>Tier</MobileBody>
+              <View style={styles.editChipRow}>
+                {['High', 'Med', 'Low'].map((t) => (
+                  <TouchableOpacity
+                    key={t}
+                    style={[styles.editChip, editTier === t && styles.editChipActive]}
+                    onPress={() => setEditTier(t)}
+                  >
+                    <MobileCaption style={[styles.editChipText, editTier === t && styles.editChipTextActive]}>
+                      {t}
+                    </MobileCaption>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* Best Events */}
+            <View style={styles.editFormRow}>
+              <MobileBody style={styles.editLabel}>Best Events (Optional)</MobileBody>
+              <TextInput
+                style={[styles.editInput, styles.editInputMultiline]}
+                value={editBestEvents}
+                onChangeText={setEditBestEvents}
+                placeholder="e.g., 100m, 200m, 4x100"
+                placeholderTextColor={styleTokens.colors.disabled}
+                multiline
+              />
+            </View>
+
+            <View style={styles.modalButtons}>
+              <Pressable style={styles.modalButtonCancel} onPress={handleEditCancel}>
+                <Text style={styles.modalButtonTextCancel}>Cancel</Text>
+              </Pressable>
+              <Pressable style={styles.modalButtonSave} onPress={handleEditSave}>
+                <Text style={styles.modalButtonTextSave}>Save</Text>
               </Pressable>
             </View>
           </View>
@@ -530,6 +652,108 @@ const styles = StyleSheet.create({
     color: styleTokens.colors.textSecondary,
     fontStyle: 'italic',
     marginBottom: scale(12),
+  },
+  cardActions: {
+    flexDirection: 'row',
+    gap: scale(8),
+    justifyContent: 'flex-end',
+  },
+  editButton: {
+    paddingHorizontal: scale(20),
+    paddingVertical: scale(8),
+    borderRadius: scale(5),
+    borderWidth: 1.5,
+    borderColor: styleTokens.colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: scale(36),
+  },
+  editButtonText: {
+    color: styleTokens.colors.primary,
+    fontSize: scale(13),
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  deleteActionButton: {
+    paddingHorizontal: scale(20),
+    paddingVertical: scale(8),
+    borderRadius: scale(5),
+    backgroundColor: styleTokens.colors.primaryDark,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: scale(36),
+  },
+  deleteActionButtonText: {
+    color: styleTokens.colors.white,
+    fontSize: scale(13),
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  editFormRow: {
+    marginBottom: scale(14),
+  },
+  editLabel: {
+    color: styleTokens.colors.textMuted,
+    marginBottom: scale(6),
+    fontSize: scale(13),
+  },
+  editInput: {
+    backgroundColor: styleTokens.colors.white,
+    borderColor: styleTokens.colors.border,
+    borderWidth: 1,
+    borderRadius: scale(6),
+    paddingVertical: scale(10),
+    paddingHorizontal: scale(14),
+    fontSize: scale(15),
+    color: styleTokens.colors.textPrimary,
+  },
+  editInputMultiline: {
+    minHeight: scale(64),
+    textAlignVertical: 'top',
+  },
+  editChipRow: {
+    flexDirection: 'row',
+    gap: scale(8),
+  },
+  editChip: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: scale(10),
+    borderRadius: scale(8),
+    borderWidth: 1,
+    borderColor: 'rgba(100, 226, 211, 0.4)',
+    backgroundColor: 'rgba(100, 226, 211, 0.05)',
+  },
+  editChipActive: {
+    backgroundColor: styleTokens.colors.primaryLight,
+    borderColor: styleTokens.colors.primary,
+  },
+  editChipText: {
+    color: styleTokens.colors.textMuted,
+    fontSize: scale(13),
+    fontWeight: '600',
+  },
+  editChipTextActive: {
+    color: styleTokens.colors.textPrimary,
+    fontWeight: '700',
+  },
+  modalButtonSave: {
+    flex: 1,
+    backgroundColor: styleTokens.colors.primary,
+    paddingVertical: scale(12),
+    paddingHorizontal: scale(20),
+    borderRadius: scale(8),
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: scale(48),
+  },
+  modalButtonTextSave: {
+    color: styleTokens.colors.textPrimary,
+    fontSize: scale(16),
+    fontWeight: '700',
   },
   deleteButton: {
     backgroundColor: styleTokens.colors.danger,
