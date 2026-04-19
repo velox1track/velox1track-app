@@ -298,8 +298,8 @@ const TeamBuilderScreen = () => {
       {/* Edit Athlete Modal */}
       {showEditModal && athleteToEdit && (
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <MobileH2 style={styles.modalTitle}>Edit Athlete</MobileH2>
+          <View style={styles.editModalContent}>
+            <MobileH2 style={styles.editModalTitle}>Edit Athlete</MobileH2>
 
             {/* Name */}
             <View style={styles.editFormRow}>
@@ -309,7 +309,7 @@ const TeamBuilderScreen = () => {
                 value={editName}
                 onChangeText={setEditName}
                 placeholder="Athlete name"
-                placeholderTextColor={styleTokens.colors.disabled}
+                placeholderTextColor="rgba(255, 255, 255, 0.3)"
               />
             </View>
 
@@ -357,17 +357,17 @@ const TeamBuilderScreen = () => {
                 value={editBestEvents}
                 onChangeText={setEditBestEvents}
                 placeholder="e.g., 100m, 200m, 4x100"
-                placeholderTextColor={styleTokens.colors.disabled}
+                placeholderTextColor="rgba(255, 255, 255, 0.3)"
                 multiline
               />
             </View>
 
             <View style={styles.modalButtons}>
-              <Pressable style={styles.modalButtonCancel} onPress={handleEditCancel}>
-                <Text style={styles.modalButtonTextCancel}>Cancel</Text>
+              <Pressable style={styles.editModalButtonCancel} onPress={handleEditCancel}>
+                <Text style={styles.editModalButtonTextCancel}>Cancel</Text>
               </Pressable>
-              <Pressable style={styles.modalButtonSave} onPress={handleEditSave}>
-                <Text style={styles.modalButtonTextSave}>Save</Text>
+              <Pressable style={styles.editModalButtonSave} onPress={handleEditSave}>
+                <Text style={styles.editModalButtonTextSave}>Save</Text>
               </Pressable>
             </View>
           </View>
@@ -695,19 +695,20 @@ const styles = StyleSheet.create({
     marginBottom: scale(14),
   },
   editLabel: {
-    color: styleTokens.colors.textMuted,
+    color: 'rgba(255, 255, 255, 0.6)',
     marginBottom: scale(6),
     fontSize: scale(13),
   },
   editInput: {
-    backgroundColor: styleTokens.colors.white,
-    borderColor: styleTokens.colors.border,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
     borderWidth: 1,
     borderRadius: scale(6),
     paddingVertical: scale(10),
     paddingHorizontal: scale(14),
     fontSize: scale(15),
-    color: styleTokens.colors.textPrimary,
+    color: styleTokens.colors.white,
+    fontFamily: styleTokens.typography.fonts.robotoMono,
   },
   editInputMultiline: {
     minHeight: scale(64),
@@ -724,15 +725,15 @@ const styles = StyleSheet.create({
     paddingVertical: scale(10),
     borderRadius: scale(8),
     borderWidth: 1,
-    borderColor: 'rgba(100, 226, 211, 0.4)',
-    backgroundColor: 'rgba(100, 226, 211, 0.05)',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'rgba(255, 255, 255, 0.07)',
   },
   editChipActive: {
-    backgroundColor: styleTokens.colors.primaryLight,
+    backgroundColor: 'rgba(100, 226, 211, 0.8)',
     borderColor: styleTokens.colors.primary,
   },
   editChipText: {
-    color: styleTokens.colors.textMuted,
+    color: 'rgba(255, 255, 255, 0.7)',
     fontSize: scale(13),
     fontWeight: '600',
   },
@@ -767,6 +768,60 @@ const styles = StyleSheet.create({
     fontSize: scale(14),
     fontWeight: 'bold',
   },
+  // ─── Edit Athlete Modal (dark theme) ────────────────────────────────────────
+  editModalContent: {
+    backgroundColor: 'rgba(30, 40, 50, 0.98)',
+    borderRadius: scale(12),
+    borderWidth: 2,
+    borderColor: 'rgba(100, 226, 211, 0.4)',
+    padding: scale(24),
+    width: '90%',
+    maxWidth: scale(400),
+    maxHeight: '90%',
+    ...styleTokens.shadows.lg,
+  },
+  editModalTitle: {
+    color: styleTokens.colors.white,
+    marginBottom: scale(16),
+    textAlign: 'center',
+  },
+  editModalButtonCancel: {
+    flex: 1,
+    backgroundColor: styleTokens.colors.primaryDark,
+    paddingVertical: scale(12),
+    paddingHorizontal: scale(20),
+    borderRadius: scale(8),
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: scale(48),
+  },
+  editModalButtonTextCancel: {
+    color: styleTokens.colors.white,
+    fontSize: scale(14),
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    fontFamily: styleTokens.typography.fonts.robotoMono,
+    letterSpacing: styleTokens.typography.letterSpacing.wide,
+  },
+  editModalButtonSave: {
+    flex: 1,
+    backgroundColor: styleTokens.colors.primary,
+    paddingVertical: scale(12),
+    paddingHorizontal: scale(20),
+    borderRadius: scale(8),
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: scale(48),
+  },
+  editModalButtonTextSave: {
+    color: styleTokens.colors.textPrimary,
+    fontSize: scale(14),
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    fontFamily: styleTokens.typography.fonts.robotoMono,
+    letterSpacing: styleTokens.typography.letterSpacing.wide,
+  },
+
   modalOverlay: {
     position: 'absolute',
     top: 0,
