@@ -656,14 +656,9 @@ const AssignTeamsScreen = () => {
                       <MobileBody style={styles.athleteSelectionName}>{athlete.name}</MobileBody>
                       <View style={styles.athleteSelectionBadges}>
                         {athlete.gender && (
-                          <View style={[
-                            styles.athleteSelectionGenderBadge,
-                            athlete.gender === 'Male' ? styles.genderMale : styles.genderFemale
-                          ]}>
-                            <Text style={styles.athleteSelectionGenderIcon}>
-                              {athlete.gender === 'Male' ? '♂' : '♀'}
-                            </Text>
-                          </View>
+                          <Text style={athlete.gender === 'Male' ? styles.genderMale : styles.genderFemale}>
+                            {athlete.gender === 'Male' ? 'M' : 'F'}
+                          </Text>
                         )}
                         <View style={styles.athleteSelectionTierBadge}>
                           <MobileCaption style={styles.athleteSelectionTierText}>{athlete.tier}</MobileCaption>
@@ -1405,18 +1400,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: scale(6),
   },
-  athleteSelectionGenderBadge: {
-    width: scale(24),
-    height: scale(24),
-    borderRadius: scale(12),
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1.5,
-  },
-  athleteSelectionGenderIcon: {
+  genderMale: {
+    color: 'rgb(59, 130, 246)',
+    fontWeight: '800',
     fontSize: scale(14),
-    color: styleTokens.colors.white,
-    fontWeight: 'bold',
+    fontFamily: 'Roboto Mono',
+  },
+  genderFemale: {
+    color: 'rgb(236, 72, 153)',
+    fontWeight: '800',
+    fontSize: scale(14),
+    fontFamily: 'Roboto Mono',
   },
   athleteSelectionTierBadge: {
     paddingHorizontal: scale(8),

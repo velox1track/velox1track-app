@@ -495,14 +495,9 @@ const AssignRunnersScreen = ({ route, navigation }) => {
                             {athlete.name}
                           </MobileBody>
                           {athlete.gender && (
-                            <View style={[
-                              styles.athleteGenderBadge,
-                              athlete.gender === 'Male' ? styles.genderMale : styles.genderFemale
-                            ]}>
-                              <Text style={styles.athleteGenderIcon}>
-                                {athlete.gender === 'Male' ? '♂' : '♀'}
-                              </Text>
-                            </View>
+                            <Text style={athlete.gender === 'Male' ? styles.genderMale : styles.genderFemale}>
+                              {athlete.gender === 'Male' ? 'M' : 'F'}
+                            </Text>
                           )}
                         </View>
                         <MobileCaption style={styles.athleteTier}>
@@ -966,26 +961,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: scale(8),
   },
-  athleteGenderBadge: {
-    width: scale(20),
-    height: scale(20),
-    borderRadius: scale(10),
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1.5,
-  },
   genderMale: {
-    backgroundColor: 'rgba(59, 130, 246, 0.15)',
-    borderColor: 'rgba(59, 130, 246, 0.6)',
+    color: 'rgb(59, 130, 246)',
+    fontWeight: '800',
+    fontSize: scale(13),
+    fontFamily: 'Roboto Mono',
   },
   genderFemale: {
-    backgroundColor: 'rgba(236, 72, 153, 0.15)',
-    borderColor: 'rgba(236, 72, 153, 0.6)',
-  },
-  athleteGenderIcon: {
-    fontSize: scale(12),
-    color: styleTokens.colors.white,
-    fontWeight: 'bold',
+    color: 'rgb(236, 72, 153)',
+    fontWeight: '800',
+    fontSize: scale(13),
+    fontFamily: 'Roboto Mono',
   },
 });
 

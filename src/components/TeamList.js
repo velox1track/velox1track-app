@@ -49,13 +49,13 @@ const TeamList = ({ teams, onMoveAthlete, onColorChange, editable = false }) => 
                   {team.athletes.length > 0 && (
                     <View style={styles.genderBreakdown}>
                       <View style={styles.genderItem}>
-                        <Text style={styles.genderIcon}>♂</Text>
+                        <Text style={styles.genderMaleLabel}>M</Text>
                         <MobileCaption style={styles.genderCount}>
                           {team.athletes.filter(a => a.gender === 'Male').length}
                         </MobileCaption>
                       </View>
                       <View style={styles.genderItem}>
-                        <Text style={styles.genderIcon}>♀</Text>
+                        <Text style={styles.genderFemaleLabel}>F</Text>
                         <MobileCaption style={styles.genderCount}>
                           {team.athletes.filter(a => a.gender === 'Female').length}
                         </MobileCaption>
@@ -85,14 +85,9 @@ const TeamList = ({ teams, onMoveAthlete, onColorChange, editable = false }) => 
                         <MobileBody style={styles.athleteName}>{athlete.name}</MobileBody>
                         <View style={styles.badgeContainer}>
                           {athlete.gender && (
-                            <View style={[
-                              styles.athleteGenderBadge, 
-                              athlete.gender === 'Male' ? styles.genderMale : styles.genderFemale
-                            ]}>
-                              <Text style={styles.athleteGenderIcon}>
-                                {athlete.gender === 'Male' ? '♂' : '♀'}
-                              </Text>
-                            </View>
+                            <Text style={athlete.gender === 'Male' ? styles.genderMaleLabel : styles.genderFemaleLabel}>
+                              {athlete.gender === 'Male' ? 'M' : 'F'}
+                            </Text>
                           )}
                           <View style={[styles.tierBadge]}>
                             <MobileCaption style={styles.tierText}>{athlete.tier}</MobileCaption>
@@ -189,16 +184,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: scale(4),
   },
-  genderIcon: {
+  genderMaleLabel: {
+    color: 'rgb(59, 130, 246)',
+    fontWeight: '800',
     fontSize: scale(14),
-    color: styleTokens.colors.primary,
-    fontWeight: 'bold',
+    fontFamily: 'Roboto Mono',
+  },
+  genderFemaleLabel: {
+    color: 'rgb(236, 72, 153)',
+    fontWeight: '800',
+    fontSize: scale(14),
+    fontFamily: 'Roboto Mono',
   },
   genderCount: {
     color: styleTokens.colors.textSecondary,
     fontSize: scale(12),
-  },
-  editToggle: {
+  },  editToggle: {
     width: scale(36),
     height: scale(20),
     borderRadius: scale(10),
@@ -282,27 +283,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: scale(6),
-  },
-  athleteGenderBadge: {
-    width: scale(24),
-    height: scale(24),
-    borderRadius: scale(12),
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1.5,
-  },
-  genderMale: {
-    backgroundColor: 'rgba(59, 130, 246, 0.15)',
-    borderColor: 'rgba(59, 130, 246, 0.6)',
-  },
-  genderFemale: {
-    backgroundColor: 'rgba(236, 72, 153, 0.15)',
-    borderColor: 'rgba(236, 72, 153, 0.6)',
-  },
-  athleteGenderIcon: {
-    fontSize: scale(14),
-    color: styleTokens.colors.white,
-    fontWeight: 'bold',
   },
   tierBadge: {
     paddingHorizontal: scale(8),

@@ -213,15 +213,11 @@ const TeamBuilderScreen = () => {
           {athletes.length > 0 && (
             <View style={styles.genderSummary}>
               <View style={styles.genderSummaryItem}>
-                <View style={[styles.genderBadge, styles.genderMale]}>
-                  <Text style={styles.genderIcon}>♂</Text>
-                </View>
+                <Text style={styles.genderMale}>M</Text>
                 <MobileBody style={styles.genderSummaryText}>Male: {getGenderCount('Male')}</MobileBody>
               </View>
               <View style={styles.genderSummaryItem}>
-                <View style={[styles.genderBadge, styles.genderFemale]}>
-                  <Text style={styles.genderIcon}>♀</Text>
-                </View>
+                <Text style={styles.genderFemale}>F</Text>
                 <MobileBody style={styles.genderSummaryText}>Female: {getGenderCount('Female')}</MobileBody>
               </View>
             </View>
@@ -243,14 +239,9 @@ const TeamBuilderScreen = () => {
                     <MobileH2 style={styles.athleteName} numberOfLines={2}>{athlete.name}</MobileH2>
                     <View style={styles.badgeContainer}>
                       {athlete.gender && (
-                        <View style={[
-                          styles.genderBadge, 
-                          athlete.gender === 'Male' ? styles.genderMale : styles.genderFemale
-                        ]}>
-                          <Text style={styles.genderIcon}>
-                            {athlete.gender === 'Male' ? '♂' : '♀'}
-                          </Text>
-                        </View>
+                        <Text style={athlete.gender === 'Male' ? styles.genderMale : styles.genderFemale}>
+                          {athlete.gender === 'Male' ? 'M' : 'F'}
+                        </Text>
                       )}
                       <View style={[styles.tierBadge, styles[`tier${athlete.tier}`]]}>
                         <MobileCaption style={styles.tierText}>{athlete.tier}</MobileCaption>
@@ -604,48 +595,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: scale(6),
   },
-  genderBadge: {
-    width: scale(28),
-    height: scale(28),
-    borderRadius: scale(14),
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1.5,
-    overflow: 'hidden',
-    ...Platform.select({
-      web: {
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-      },
-    }),
-  },
   genderMale: {
-    backgroundColor: 'rgba(59, 130, 246, 0.15)',
-    borderColor: 'rgba(59, 130, 246, 0.6)',
+    color: 'rgb(59, 130, 246)',
+    fontWeight: '800',
+    fontSize: scale(15),
+    fontFamily: styleTokens.typography.fonts.robotoMono,
   },
   genderFemale: {
-    backgroundColor: 'rgba(236, 72, 153, 0.15)',
-    borderColor: 'rgba(236, 72, 153, 0.6)',
-  },
-  genderIcon: {
-    fontSize: scale(16),
-    lineHeight: scale(16),
-    color: styleTokens.colors.white,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    ...Platform.select({
-      android: {
-        includeFontPadding: false,
-        textAlignVertical: 'center',
-      },
-      web: {
-        userSelect: 'none',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-      },
-    }),
+    color: 'rgb(236, 72, 153)',
+    fontWeight: '800',
+    fontSize: scale(15),
+    fontFamily: styleTokens.typography.fonts.robotoMono,
   },
   bestEvents: {
     fontSize: scale(14),
