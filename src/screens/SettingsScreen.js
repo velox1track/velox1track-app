@@ -45,6 +45,7 @@ const SettingsScreen = ({ navigation }) => {
   const [showExportDataInfo, setShowExportDataInfo] = useState(false);
   const [exportDataInfo, setExportDataInfo] = useState(null);
   const [showResetProgressConfirm, setShowResetProgressConfirm] = useState(false);
+  const [showResetTeamsConfirm, setShowResetTeamsConfirm] = useState(false);
 
   // Race Roulette sequence settings
   const [rouletteSettings, setRouletteSettings] = useState({ totalEvents: 5, numRelays: 1, relayPositions: [] });
@@ -624,6 +625,24 @@ const SettingsScreen = ({ navigation }) => {
     setClearSpecificType(null);
   };
 
+  const handleResetTeamsConfirm = async () => {
+    try {
+      await AsyncStorage.removeItem('teams');
+      await AsyncStorage.removeItem('eventAssignments');
+      setTeamCount(0);
+      setDataStats(prev => ({ ...prev, teams: 0 }));
+      eventBus.emit('teamsUpdated', 0);
+    } catch (error) {
+      console.error('Error resetting teams:', error);
+    } finally {
+      setShowResetTeamsConfirm(false);
+    }
+  };
+
+  const handleResetTeamsCancel = () => {
+    setShowResetTeamsConfirm(false);
+  };
+
   const exportData = async () => {
     console.log('Export data button pressed');
     try {
@@ -898,6 +917,78 @@ const SettingsScreen = ({ navigation }) => {
           </View>
         </Card>
 
+        {/* Team Configuration — always visible, locked when teams exist */}
+        <Card style={[styles.section, isLandscape && styles.sectionLandscape]}>
+          <View style={styles.sectionHeaderRow}>
+            <MobileH2 style={[styles.sectionTitle, isLandscape && styles.sectionTitleLandscape]}>Team Configuration</MobileH2>
+            {teamCount > 0 && (
+              <View style={styles.lockedBadge}>
+                <MobileCaption style={styles.lockedBadgeText}>Locked</MobileCaption>
+              </View>
+            )}
+          </View>
+
+          <View style={styles.rrRow}>
+            <View style={styles.rrColFixed}>
+              <MobileBody style={styles.rrLabel}>
+                {teamCount > 0 ? 'Active Teams' : 'Planned Team Count'}
+              </MobileBody>
+              <View style={[styles.stepper, teamCount > 0 && styles.stepperDisabled]}>
+                <Pressable
+                  style={[styles.stepperBtn, teamCount > 0 && styles.stepperBtnDisabled]}
+                  onPress={async () => {
+                    if (teamCount > 0) return;
+                    const v = Math.max(2, (plannedTeams || 0) - 1);
+                    setPlannedTeams(v);
+                    eventBus.emit('plannedTeamsUpdated', v);
+                    try { await AsyncStorage.setItem('settings.teamConfig', JSON.stringify({ plannedTeams: v })); } catch {}
+                  }}
+                  disabled={teamCount > 0}
+                >
+                  <MobileBody style={[styles.stepperBtnText, teamCount > 0 && styles.stepperBtnTextDisabled]}>−</MobileBody>
+                </Pressable>
+                <MobileBody style={[styles.stepperValue, teamCount > 0 && styles.stepperValueLocked]}>
+                  {String(teamCount > 0 ? teamCount : plannedTeams)}
+                </MobileBody>
+                <Pressable
+                  style={[styles.stepperBtn, teamCount > 0 && styles.stepperBtnDisabled]}
+                  onPress={async () => {
+                    if (teamCount > 0) return;
+                    const v = Math.min(32, (plannedTeams || 0) + 1);
+                    setPlannedTeams(v);
+                    eventBus.emit('plannedTeamsUpdated', v);
+                    try { await AsyncStorage.setItem('settings.teamConfig', JSON.stringify({ plannedTeams: v })); } catch {}
+                  }}
+                  disabled={teamCount > 0}
+                >
+                  <MobileBody style={[styles.stepperBtnText, teamCount > 0 && styles.stepperBtnTextDisabled]}>+</MobileBody>
+                </Pressable>
+              </View>
+
+              {teamCount > 0 ? (
+                <MobileCaption style={styles.syncHelp}>
+                  Teams are active. Reset to change configuration.
+                </MobileCaption>
+              ) : (
+                <MobileCaption style={styles.syncHelp}>
+                  Used for scoring sync until teams are generated.
+                </MobileCaption>
+              )}
+            </View>
+          </View>
+
+          {teamCount > 0 && (
+            <View style={styles.resetTeamsRow}>
+              <ButtonSecondary
+                onPress={() => setShowResetTeamsConfirm(true)}
+                style={styles.resetTeamsButton}
+              >
+                Reset Teams
+              </ButtonSecondary>
+            </View>
+          )}
+        </Card>
+
         {/* Race Roulette Sequence Settings */}
         <Card style={[styles.section, isLandscape && styles.sectionLandscape]}>
           <MobileH2 style={[styles.sectionTitle, isLandscape && styles.sectionTitleLandscape]}>Race Roulette Sequence</MobileH2>
@@ -1028,34 +1119,6 @@ const SettingsScreen = ({ navigation }) => {
             </ButtonPrimary>
           </View>
         </Card>
-
-        {/* Team Configuration (only when no teams exist) */}
-        {teamCount === 0 && (
-          <Card style={[styles.section, isLandscape && styles.sectionLandscape]}>
-            <MobileH2 style={[styles.sectionTitle, isLandscape && styles.sectionTitleLandscape]}>Team Configuration</MobileH2>
-            <View style={styles.rrRow}>
-              <View style={styles.rrColFixed}>
-                <MobileBody style={styles.rrLabel}>Planned Team Count</MobileBody>
-                <View style={styles.stepper}>
-                  <Pressable style={styles.stepperBtn} onPress={async () => {
-                    const v = Math.max(2, (plannedTeams || 0) - 1);
-                    setPlannedTeams(v);
-                    eventBus.emit('plannedTeamsUpdated', v);
-                    try { await AsyncStorage.setItem('settings.teamConfig', JSON.stringify({ plannedTeams: v })); } catch {}
-                  }}><MobileBody style={styles.stepperBtnText}>−</MobileBody></Pressable>
-                  <MobileBody style={styles.stepperValue}>{String(plannedTeams)}</MobileBody>
-                  <Pressable style={styles.stepperBtn} onPress={async () => {
-                    const v = Math.min(32, (plannedTeams || 0) + 1);
-                    setPlannedTeams(v);
-                    eventBus.emit('plannedTeamsUpdated', v);
-                    try { await AsyncStorage.setItem('settings.teamConfig', JSON.stringify({ plannedTeams: v })); } catch {}
-                  }}><MobileBody style={styles.stepperBtnText}>+</MobileBody></Pressable>
-                </View>
-                <MobileCaption style={styles.syncHelp}>Used for scoring sync until teams are generated.</MobileCaption>
-              </View>
-            </View>
-          </Card>
-        )}
 
         {/* Infractions Settings */}
         <Card style={[styles.section, isLandscape && styles.sectionLandscape]}>
@@ -1316,6 +1379,31 @@ const SettingsScreen = ({ navigation }) => {
               </Pressable>
               <Pressable style={[styles.modalButtonConfirm, styles.modalButtonDanger]} onPress={handleClearAllDataConfirm}>
                 <MobileBody style={styles.modalButtonText}>Clear All Data</MobileBody>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Reset Teams Confirmation Modal */}
+      <Modal
+        visible={showResetTeamsConfirm}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={handleResetTeamsCancel}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <MobileH2 style={styles.modalTitle}>Reset Teams</MobileH2>
+            <MobileBody style={styles.modalMessage}>
+              This will delete all teams and athlete assignments. Your athletes list will not be affected. This action cannot be undone.
+            </MobileBody>
+            <View style={styles.modalButtons}>
+              <Pressable style={styles.modalButtonCancel} onPress={handleResetTeamsCancel}>
+                <MobileBody style={styles.modalButtonTextCancel}>Cancel</MobileBody>
+              </Pressable>
+              <Pressable style={[styles.modalButtonConfirm, styles.modalButtonDanger]} onPress={handleResetTeamsConfirm}>
+                <MobileBody style={styles.modalButtonText}>Reset Teams</MobileBody>
               </Pressable>
             </View>
           </View>
@@ -1713,6 +1801,47 @@ const styles = StyleSheet.create({
   syncHelp: {
     color: styleTokens.colors.textSecondary,
     marginTop: scale(8),
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: scale(4),
+  },
+  lockedBadge: {
+    backgroundColor: 'rgba(159, 167, 174, 0.3)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderRadius: scale(6),
+    paddingHorizontal: scale(10),
+    paddingVertical: scale(3),
+  },
+  lockedBadgeText: {
+    color: styleTokens.colors.textSecondary,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+  },
+  stepperDisabled: {
+    opacity: 0.45,
+  },
+  stepperBtnDisabled: {
+    backgroundColor: 'rgba(159, 167, 174, 0.15)',
+  },
+  stepperBtnTextDisabled: {
+    color: styleTokens.colors.disabled,
+  },
+  stepperValueLocked: {
+    color: styleTokens.colors.textSecondary,
+  },
+  resetTeamsRow: {
+    marginTop: scale(16),
+    paddingTop: scale(16),
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.15)',
+    alignItems: 'flex-start',
+  },
+  resetTeamsButton: {
+    minWidth: scale(160),
   },
   syncRow: {
     flexDirection: 'row',
