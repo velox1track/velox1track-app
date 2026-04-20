@@ -2265,13 +2265,13 @@ const styles = StyleSheet.create({
     ...styleTokens.shadows.lg,
   },
   modalTitle: {
-    color: styleTokens.colors.textPrimary,
+    color: styleTokens.colors.white,
     marginBottom: scale(16),
     textAlign: 'center',
     fontWeight: '700',
   },
   modalMessage: {
-    color: styleTokens.colors.textSecondary,
+    color: 'rgba(255, 255, 255, 0.7)',
     marginBottom: scale(24),
     textAlign: 'center',
     lineHeight: scale(22),
@@ -2283,12 +2283,10 @@ const styles = StyleSheet.create({
   },
   modalButtonCancel: {
     flex: 1,
-    backgroundColor: styleTokens.colors.backgroundLight,
+    backgroundColor: styleTokens.colors.primaryDark,
     paddingVertical: scale(12),
     paddingHorizontal: scale(20),
     borderRadius: scale(8),
-    borderWidth: 1,
-    borderColor: styleTokens.colors.border,
     alignItems: 'center',
   },
   modalButtonConfirm: {
@@ -2303,12 +2301,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#ff6b6b',
   },
   modalButtonText: {
-    color: styleTokens.colors.white,
-    fontWeight: '600',
+    color: styleTokens.colors.textPrimary,
+    fontSize: scale(14),
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    fontFamily: styleTokens.typography.fonts.robotoMono,
+    letterSpacing: styleTokens.typography.letterSpacing.wide,
   },
   modalButtonTextCancel: {
-    color: styleTokens.colors.textPrimary,
-    fontWeight: '600',
+    color: styleTokens.colors.white,
+    fontSize: scale(14),
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    fontFamily: styleTokens.typography.fonts.robotoMono,
+    letterSpacing: styleTokens.typography.letterSpacing.wide,
   },
 });
 

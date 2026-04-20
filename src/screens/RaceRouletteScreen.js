@@ -1127,20 +1127,23 @@ const styles = StyleSheet.create({
     zIndex: 1000,
   },
   modalContent: {
-    backgroundColor: styleTokens.colors.surface,
+    backgroundColor: 'rgba(30, 40, 50, 0.98)',
     borderRadius: scale(12),
     padding: scale(24),
     width: '90%',
     maxWidth: scale(400),
+    borderWidth: 2,
+    borderColor: 'rgba(100, 226, 211, 0.4)',
     ...styleTokens.shadows.lg,
   },
   modalTitle: {
-    color: styleTokens.colors.textPrimary,
+    color: styleTokens.colors.white,
     marginBottom: scale(16),
     textAlign: 'center',
+    fontWeight: '700',
   },
   modalMessage: {
-    color: styleTokens.colors.textSecondary,
+    color: 'rgba(255, 255, 255, 0.7)',
     marginBottom: scale(24),
     textAlign: 'center',
     lineHeight: scale(20),
@@ -1152,7 +1155,7 @@ const styles = StyleSheet.create({
   },
   modalButtonCancel: {
     flex: 1,
-    backgroundColor: styleTokens.colors.border,
+    backgroundColor: styleTokens.colors.primaryDark,
     paddingVertical: scale(12),
     paddingHorizontal: scale(20),
     borderRadius: scale(8),
@@ -1171,7 +1174,7 @@ const styles = StyleSheet.create({
     minHeight: scale(48),
   },
   modalButtonTextCancel: {
-    color: styleTokens.colors.textPrimary,
+    color: styleTokens.colors.white,
     fontSize: scale(14),
     fontWeight: '700',
     textTransform: 'uppercase',
@@ -1398,7 +1401,7 @@ const styles = StyleSheet.create({
 
   // ─── Event Action Modal Styles ────────────────────────────────────────────────
   eventActionEventNum: {
-    color: styleTokens.colors.textMuted,
+    color: 'rgba(255, 255, 255, 0.5)',
     textAlign: 'center',
     marginBottom: scale(4),
     fontSize: scale(12),
@@ -1411,7 +1414,7 @@ const styles = StyleSheet.create({
     marginTop: scale(8),
   },
   eventActionBtnAthletes: {
-    backgroundColor: styleTokens.colors.border,
+    backgroundColor: styleTokens.colors.primaryDark,
     paddingVertical: scale(14),
     paddingHorizontal: scale(20),
     borderRadius: scale(8),
@@ -1420,7 +1423,7 @@ const styles = StyleSheet.create({
     minHeight: scale(48),
   },
   eventActionBtnAthletesText: {
-    color: styleTokens.colors.textPrimary,
+    color: styleTokens.colors.white,
     fontSize: scale(14),
     fontWeight: '700',
     textTransform: 'uppercase',
@@ -1450,7 +1453,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   eventActionBtnCancelText: {
-    color: styleTokens.colors.textMuted,
+    color: 'rgba(255, 255, 255, 0.45)',
     fontSize: scale(12),
     fontWeight: '700',
     textTransform: 'uppercase',
