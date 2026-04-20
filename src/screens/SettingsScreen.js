@@ -20,6 +20,26 @@ import { styleTokens } from '../theme';
 import { scale } from '../utils/scale';
 import { getDefaultEventPool } from '../lib/randomizer';
 
+const SCORING_PRESETS_BY_TEAMS = {
+  8: [10, 5, 4, 3, 2, 1, 0, -5],
+  7: [10, 5, 4, 3, 2, 1, -5],
+  6: [10, 5, 4, 3, 2, -5],
+  5: [10, 5, 4, 3, -5],
+  4: [10, 5, 4, -5],
+  3: [10, 5, -5],
+  2: [5, -5],
+};
+
+const buildScoringPlaces = (count) => {
+  const preset = SCORING_PRESETS_BY_TEAMS[count] || [];
+  let arr = preset.slice(0, count);
+  if (arr.length < count) {
+    const tail = arr.length ? arr[arr.length - 1] : -5;
+    arr = arr.concat(Array(count - arr.length).fill(tail));
+  }
+  return arr.map((pts, i) => ({ place: i + 1, points: pts }));
+};
+
 const SettingsScreen = ({ navigation }) => {
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
@@ -55,7 +75,7 @@ const SettingsScreen = ({ navigation }) => {
   const [scoringSettings, setScoringSettings] = useState({ places: [
     { place: 1, points: 10 }, { place: 2, points: 5 }, { place: 3, points: 4 }, { place: 4, points: 3 },
     { place: 5, points: 2 }, { place: 6, points: 1 }, { place: 7, points: 0 }, { place: 8, points: -5 }
-  ], activePresetId: 'default', syncToTeams: true });
+  ], activePresetId: 'default' });
   const [isSavingScoring, setIsSavingScoring] = useState(false);
 
   // Infractions settings
@@ -122,96 +142,22 @@ const SettingsScreen = ({ navigation }) => {
     // Live-sync scoring places with team count
     const handleTeamsUpdated = (count) => {
       setTeamCount(count);
-      setScoringSettings(prev => {
-        if (!prev.syncToTeams) return prev;
-        if (!Array.isArray(prev.places)) return prev;
-        const desired = Math.max(2, Number(count) || 0);
-        if (desired === 0) return prev; // no change when no teams yet
-        
-        // Apply preset values for the new team count
-        const presetValues = presetsByTeams[desired] || [];
-        let nextPlaces;
-        
-        if (presetValues.length > 0) {
-          // Use preset values, extending with last preset value if needed
-          let arr = presetValues.slice(0, desired);
-          if (arr.length < desired) {
-            const tail = arr.length ? arr[arr.length - 1] : -5;
-            arr = arr.concat(Array(desired - arr.length).fill(tail));
-          }
-          nextPlaces = arr.map((pts, i) => ({ place: i + 1, points: pts }));
-          setInlineNotice(`Team count changed to ${count}. Scoring updated to ${desired}-team preset.`);
-        } else {
-          // Fallback to extending/trimming existing values
-          nextPlaces = prev.places;
-          if (prev.places.length > desired) {
-            setInlineNotice(`Team count changed to ${count}. Places trimmed to ${desired}.`);
-            nextPlaces = prev.places.slice(0, desired);
-          } else if (prev.places.length < desired) {
-            const lastPoints = prev.places.length ? prev.places[prev.places.length - 1].points : -5;
-            const additions = Array.from({ length: desired - prev.places.length }, (_, i) => ({ place: prev.places.length + i + 1, points: lastPoints }));
-            nextPlaces = [...prev.places, ...additions];
-            setInlineNotice(`Team count changed to ${count}. Places extended to ${desired}.`);
-          }
-          // Re-number places to 1..desired
-          nextPlaces = nextPlaces.map((p, i) => ({ place: i + 1, points: p.points }));
-        }
-        
-        const newSettings = { ...prev, places: nextPlaces, activePresetId: `${desired}T` };
-        
-        // Auto-save the updated scoring settings to persist the changes
-        AsyncStorage.setItem('settings.scoring', JSON.stringify(newSettings)).catch(error => {
-          console.log('Error auto-saving scoring settings:', error);
-        });
-        
-        return newSettings;
-      });
+      const desired = Math.max(2, Number(count) || 0);
+      if (desired === 0) return;
+      const newSettings = { places: buildScoringPlaces(desired), activePresetId: `${desired}T` };
+      setScoringSettings(newSettings);
+      setInlineNotice(`Team count changed to ${count}. Scoring updated to ${desired}-team preset.`);
+      AsyncStorage.setItem('settings.scoring', JSON.stringify(newSettings)).catch(() => {});
     };
     const handlePlannedTeams = (planned) => {
       setPlannedTeams(planned);
       if (teamCount > 0) return; // actual teams win
-      setScoringSettings(prev => {
-        if (!prev.syncToTeams) return prev;
-        const desired = Math.max(2, Number(planned) || 0);
-        if (desired === 0) return prev;
-        
-        // Apply preset values for the new planned team count
-        const presetValues = presetsByTeams[desired] || [];
-        let nextPlaces;
-        
-        if (presetValues.length > 0) {
-          // Use preset values, extending with last preset value if needed
-          let arr = presetValues.slice(0, desired);
-          if (arr.length < desired) {
-            const tail = arr.length ? arr[arr.length - 1] : -5;
-            arr = arr.concat(Array(desired - arr.length).fill(tail));
-          }
-          nextPlaces = arr.map((pts, i) => ({ place: i + 1, points: pts }));
-          setInlineNotice(`Planned team count changed to ${planned}. Scoring updated to ${desired}-team preset.`);
-        } else {
-          // Fallback to extending/trimming existing values
-          nextPlaces = prev.places;
-          if (prev.places.length > desired) {
-            setInlineNotice(`Planned team count changed to ${planned}. Places trimmed to ${desired}.`);
-            nextPlaces = prev.places.slice(0, desired);
-          } else if (prev.places.length < desired) {
-            const lastPoints = prev.places.length ? prev.places[prev.places.length - 1].points : -5;
-            const additions = Array.from({ length: desired - prev.places.length }, (_, i) => ({ place: prev.places.length + i + 1, points: lastPoints }));
-            nextPlaces = [...prev.places, ...additions];
-            setInlineNotice(`Planned team count changed to ${planned}. Places extended to ${desired}.`);
-          }
-          nextPlaces = nextPlaces.map((p, i) => ({ place: i + 1, points: p.points }));
-        }
-        
-        const newSettings = { ...prev, places: nextPlaces, activePresetId: `${desired}T` };
-        
-        // Auto-save the updated scoring settings to persist the changes
-        AsyncStorage.setItem('settings.scoring', JSON.stringify(newSettings)).catch(error => {
-          console.log('Error auto-saving scoring settings:', error);
-        });
-        
-        return newSettings;
-      });
+      const desired = Math.max(2, Number(planned) || 0);
+      if (desired === 0) return;
+      const newSettings = { places: buildScoringPlaces(desired), activePresetId: `${desired}T` };
+      setScoringSettings(newSettings);
+      setInlineNotice(`Planned team count changed to ${planned}. Scoring updated to ${desired}-team preset.`);
+      AsyncStorage.setItem('settings.scoring', JSON.stringify(newSettings)).catch(() => {});
     };
     eventBus.on('teamsUpdated', handleTeamsUpdated);
     eventBus.on('plannedTeamsUpdated', handlePlannedTeams);
@@ -406,12 +352,51 @@ const SettingsScreen = ({ navigation }) => {
   // Load/save: Scoring
   const loadScoringSettings = async () => {
     try {
+      // Determine effective team count to reconcile scoring places against
+      let effectiveCount = 0;
+      try {
+        const teamsRaw = await AsyncStorage.getItem('teams');
+        if (teamsRaw) {
+          const parsedTeams = JSON.parse(teamsRaw);
+          if (Array.isArray(parsedTeams) && parsedTeams.length > 0) {
+            effectiveCount = parsedTeams.length;
+          }
+        }
+      } catch {}
+      if (effectiveCount === 0) {
+        try {
+          const configRaw = await AsyncStorage.getItem('settings.teamConfig');
+          if (configRaw) {
+            const cfg = JSON.parse(configRaw);
+            if (cfg && typeof cfg.plannedTeams === 'number' && cfg.plannedTeams > 0) {
+              effectiveCount = cfg.plannedTeams;
+            }
+          }
+        } catch {}
+      }
+
       const raw = await AsyncStorage.getItem('settings.scoring');
       if (raw) {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed.places)) {
-          setScoringSettings({ places: parsed.places, activePresetId: parsed.activePresetId || 'custom', syncToTeams: !!parsed.syncToTeams });
+          if (effectiveCount > 0 && parsed.places.length !== effectiveCount) {
+            // Reconcile: team count changed since last save
+            setScoringSettings({
+              places: buildScoringPlaces(effectiveCount),
+              activePresetId: `${effectiveCount}T`,
+            });
+          } else {
+            setScoringSettings({ places: parsed.places, activePresetId: parsed.activePresetId || 'custom' });
+          }
+          return;
         }
+      }
+      // No saved settings — apply preset for effective count
+      if (effectiveCount > 0) {
+        setScoringSettings({
+          places: buildScoringPlaces(effectiveCount),
+          activePresetId: `${effectiveCount}T`,
+        });
       }
     } catch {}
   };
@@ -430,10 +415,11 @@ const SettingsScreen = ({ navigation }) => {
   };
 
   const resetScoringToDefault = () => {
-    setScoringSettings({ places: [
-      { place: 1, points: 10 }, { place: 2, points: 5 }, { place: 3, points: 4 }, { place: 4, points: 3 },
-      { place: 5, points: 2 }, { place: 6, points: 1 }, { place: 7, points: 0 }, { place: 8, points: -5 }
-    ], activePresetId: 'default', syncToTeams: true });
+    const effectiveCount = teamCount > 0 ? teamCount : (plannedTeams || 8);
+    setScoringSettings({
+      places: buildScoringPlaces(effectiveCount),
+      activePresetId: `${effectiveCount}T`,
+    });
   };
 
   // Helpers: Stepper component and Scoring presets
@@ -449,32 +435,6 @@ const SettingsScreen = ({ navigation }) => {
     </View>
   );
 
-  const presetsByTeams = {
-    8: [10, 5, 4, 3, 2, 1, 0, -5],
-    7: [10, 5, 4, 3, 2, 1, -5],
-    6: [10, 5, 4, 3, 2, -5],
-    5: [10, 5, 4, 3, -5],
-    4: [10, 5, 4, -5],
-    3: [10, 5, -5],
-    2: [5, -5],
-  };
-
-  const applyScoringPreset = (teamsNum) => {
-    const base = presetsByTeams[teamsNum] || [];
-    const desired = scoringSettings.syncToTeams ? (teamCount || teamsNum) : teamsNum;
-    let arr = base.slice(0, desired);
-    if (arr.length < desired) {
-      const tail = arr.length ? arr[arr.length - 1] : 0;
-      arr = arr.concat(Array(desired - arr.length).fill(tail));
-    }
-    setScoringSettings(prev => ({
-      ...prev,
-      activePresetId: `${teamsNum}T`,
-      places: arr.map((pts, i) => ({ place: i + 1, points: pts }))
-    }));
-  };
-
-  // Load/save: Infractions
   const loadInfractionsSettings = async () => {
     try {
       const raw = await AsyncStorage.getItem('settings.infractions');
@@ -1070,30 +1030,9 @@ const SettingsScreen = ({ navigation }) => {
         {/* Points Scoring Settings */}
         <Card style={[styles.section, isLandscape && styles.sectionLandscape]}>
           <MobileH2 style={[styles.sectionTitle, isLandscape && styles.sectionTitleLandscape]}>Points Scoring</MobileH2>
-          <View style={styles.scoringHeaderRow}>
-            <View style={styles.presetChipsRow}>
-              {[8,7,6,5,4,3,2].map(n => (
-                <TouchableOpacity
-                  key={`preset-${n}`}
-                  style={[styles.presetChip, scoringSettings.activePresetId === `${n}T` && styles.presetChipActive]}
-                  onPress={() => applyScoringPreset(n)}
-                >
-                  <MobileCaption style={[styles.presetChipText, scoringSettings.activePresetId === `${n}T` && styles.presetChipTextActive]}>{n}T</MobileCaption>
-                </TouchableOpacity>
-              ))}
-            </View>
-            <View style={styles.syncRow}>
-              <MobileCaption style={styles.syncLabel}>Sync to team count</MobileCaption>
-              <TouchableOpacity
-                style={[styles.syncToggle, scoringSettings.syncToTeams && styles.syncToggleEnabled]}
-                onPress={() => setScoringSettings(prev => ({ ...prev, syncToTeams: !prev.syncToTeams }))}
-                accessibilityRole="switch"
-                accessibilityState={{ checked: scoringSettings.syncToTeams }}
-              >
-                <View style={[styles.syncToggleCircle, scoringSettings.syncToTeams && styles.syncToggleCircleEnabled]} />
-              </TouchableOpacity>
-            </View>
-          </View>
+          <MobileCaption style={styles.scoringTeamInfo}>
+            Showing {scoringSettings.places.length} place{scoringSettings.places.length !== 1 ? 's' : ''} — mirrors your {teamCount > 0 ? 'active' : 'planned'} team count ({teamCount > 0 ? teamCount : (plannedTeams || '—')} teams). Change in Team Configuration above.
+          </MobileCaption>
           <View style={styles.scoringList}>
             {scoringSettings.places.map((row, idx) => (
               <View key={`p-${row.place}-${idx}`} style={styles.scoringRow}>
@@ -1754,37 +1693,10 @@ const styles = StyleSheet.create({
   scoringList: {
     gap: scale(8),
   },
-  scoringHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  scoringTeamInfo: {
+    color: styleTokens.colors.textSecondary,
     marginBottom: scale(12),
-    gap: scale(12),
-    flexWrap: 'wrap',
-  },
-  presetChipsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: scale(6),
-  },
-  presetChip: {
-    backgroundColor: styleTokens.colors.primaryLight,
-    borderWidth: 1,
-    borderColor: 'rgba(100, 226, 211, 0.6)',
-    paddingHorizontal: scale(10),
-    paddingVertical: scale(6),
-    borderRadius: scale(12),
-  },
-  presetChipActive: {
-    backgroundColor: styleTokens.colors.primary,
-    borderColor: styleTokens.colors.primary,
-  },
-  presetChipText: {
-    color: styleTokens.colors.textPrimary,
-    fontWeight: '700',
-  },
-  presetChipTextActive: {
-    color: styleTokens.colors.white,
+    fontStyle: 'italic',
   },
   noticeBanner: {
     backgroundColor: 'rgba(100, 226, 211, 0.12)',
@@ -1842,38 +1754,6 @@ const styles = StyleSheet.create({
   },
   resetTeamsButton: {
     minWidth: scale(160),
-  },
-  syncRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: scale(8),
-  },
-  syncLabel: {
-    color: styleTokens.colors.textSecondary,
-  },
-  syncToggle: {
-    width: scale(40),
-    height: scale(22),
-    borderRadius: scale(11),
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(159, 167, 174, 0.3)',
-    paddingHorizontal: scale(2),
-  },
-  syncToggleEnabled: {
-    backgroundColor: styleTokens.colors.primary,
-    borderColor: styleTokens.colors.primary,
-    alignItems: 'flex-end',
-  },
-  syncToggleCircle: {
-    width: scale(16),
-    height: scale(16),
-    borderRadius: scale(8),
-    backgroundColor: 'rgba(255, 255, 255, 0.85)',
-  },
-  syncToggleCircleEnabled: {
-    backgroundColor: styleTokens.colors.white,
   },
   stepper: {
     flexDirection: 'row',
