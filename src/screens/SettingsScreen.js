@@ -19,26 +19,7 @@ import { ButtonPrimary, ButtonSecondary, Input } from '../components';
 import { styleTokens } from '../theme';
 import { scale } from '../utils/scale';
 import { getDefaultEventPool } from '../lib/randomizer';
-
-const SCORING_PRESETS_BY_TEAMS = {
-  8: [10, 5, 4, 3, 2, 1, 0, -5],
-  7: [10, 5, 4, 3, 2, 1, -5],
-  6: [10, 5, 4, 3, 2, -5],
-  5: [10, 5, 4, 3, -5],
-  4: [10, 5, 4, -5],
-  3: [10, 5, -5],
-  2: [5, -5],
-};
-
-const buildScoringPlaces = (count) => {
-  const preset = SCORING_PRESETS_BY_TEAMS[count] || [];
-  let arr = preset.slice(0, count);
-  if (arr.length < count) {
-    const tail = arr.length ? arr[arr.length - 1] : -5;
-    arr = arr.concat(Array(count - arr.length).fill(tail));
-  }
-  return arr.map((pts, i) => ({ place: i + 1, points: pts }));
-};
+import { buildScoringPlaces, reconcileScoringWithTeamCount } from '../lib/scoring';
 
 const SettingsScreen = ({ navigation }) => {
   const { width, height } = useWindowDimensions();
@@ -80,9 +61,10 @@ const SettingsScreen = ({ navigation }) => {
 
   // Infractions settings
   const [infractionsSettings, setInfractionsSettings] = useState({ items: [
-    { id: 'false_start', label: 'False Start', delta: -3, allowMultiple: true },
-    { id: 'lane_violation', label: 'Lane Violation', delta: -2, allowMultiple: false },
-    { id: 'baton_exchange', label: 'Baton Exchange', delta: -5, allowMultiple: false },
+    { id: 'false_start', label: 'False Start', delta: -2, allowMultiple: true },
+    { id: 'athlete_selection_clock', label: 'Athlete Selection-Clock Violation', delta: -3, allowMultiple: false },
+    { id: 'lane_violation', label: 'Lane Violation', delta: -5, allowMultiple: false },
+    { id: 'baton_exchange', label: 'Baton Exchange Violation', delta: -5, allowMultiple: false },
     { id: 'obstruction', label: 'Obstruction', delta: -5, allowMultiple: false },
   ], activePresetId: 'default' });
   const [isSavingInfractions, setIsSavingInfractions] = useState(false);
@@ -147,7 +129,9 @@ const SettingsScreen = ({ navigation }) => {
       const newSettings = { places: buildScoringPlaces(desired), activePresetId: `${desired}T` };
       setScoringSettings(newSettings);
       setInlineNotice(`Team count changed to ${count}. Scoring updated to ${desired}-team preset.`);
-      AsyncStorage.setItem('settings.scoring', JSON.stringify(newSettings)).catch(() => {});
+      AsyncStorage.setItem('settings.scoring', JSON.stringify(newSettings))
+        .then(() => eventBus.emit('settings.scoring.updated'))
+        .catch(() => {});
     };
     const handlePlannedTeams = (planned) => {
       setPlannedTeams(planned);
@@ -157,7 +141,9 @@ const SettingsScreen = ({ navigation }) => {
       const newSettings = { places: buildScoringPlaces(desired), activePresetId: `${desired}T` };
       setScoringSettings(newSettings);
       setInlineNotice(`Planned team count changed to ${planned}. Scoring updated to ${desired}-team preset.`);
-      AsyncStorage.setItem('settings.scoring', JSON.stringify(newSettings)).catch(() => {});
+      AsyncStorage.setItem('settings.scoring', JSON.stringify(newSettings))
+        .then(() => eventBus.emit('settings.scoring.updated'))
+        .catch(() => {});
     };
     eventBus.on('teamsUpdated', handleTeamsUpdated);
     eventBus.on('plannedTeamsUpdated', handlePlannedTeams);
@@ -376,27 +362,13 @@ const SettingsScreen = ({ navigation }) => {
       }
 
       const raw = await AsyncStorage.getItem('settings.scoring');
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed.places)) {
-          if (effectiveCount > 0 && parsed.places.length !== effectiveCount) {
-            // Reconcile: team count changed since last save
-            setScoringSettings({
-              places: buildScoringPlaces(effectiveCount),
-              activePresetId: `${effectiveCount}T`,
-            });
-          } else {
-            setScoringSettings({ places: parsed.places, activePresetId: parsed.activePresetId || 'custom' });
-          }
-          return;
-        }
-      }
-      // No saved settings — apply preset for effective count
-      if (effectiveCount > 0) {
-        setScoringSettings({
-          places: buildScoringPlaces(effectiveCount),
-          activePresetId: `${effectiveCount}T`,
-        });
+      const parsed = raw ? JSON.parse(raw) : null;
+      const reconciled = reconcileScoringWithTeamCount(
+        parsed && Array.isArray(parsed.places) ? parsed : null,
+        effectiveCount
+      );
+      if (reconciled) {
+        setScoringSettings(reconciled);
       }
     } catch {}
   };
@@ -451,6 +423,7 @@ const SettingsScreen = ({ navigation }) => {
     setIsSavingInfractions(true);
     try {
       await AsyncStorage.setItem('settings.infractions', JSON.stringify(infractionsSettings));
+      eventBus.emit('settings.infractions.updated');
       Alert.alert('Saved', 'Infractions settings updated.');
     } catch {
       Alert.alert('Error', 'Failed to save infractions settings.');
@@ -482,9 +455,10 @@ const SettingsScreen = ({ navigation }) => {
     setInfractionsSettings({
       activePresetId: 'default',
       items: [
-        { id: 'false_start', label: 'False Start', delta: -3, allowMultiple: true },
-        { id: 'lane_violation', label: 'Lane Violation', delta: -2, allowMultiple: false },
-        { id: 'baton_exchange', label: 'Baton Exchange', delta: -5, allowMultiple: false },
+        { id: 'false_start', label: 'False Start', delta: -2, allowMultiple: true },
+        { id: 'athlete_selection_clock', label: 'Athlete Selection-Clock Violation', delta: -3, allowMultiple: false },
+        { id: 'lane_violation', label: 'Lane Violation', delta: -5, allowMultiple: false },
+        { id: 'baton_exchange', label: 'Baton Exchange Violation', delta: -5, allowMultiple: false },
         { id: 'obstruction', label: 'Obstruction', delta: -5, allowMultiple: false },
       ]
     });

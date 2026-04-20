@@ -16,6 +16,15 @@ import { ButtonPrimary, ButtonSecondary } from '../components';
 import { styleTokens } from '../theme';
 import { scale } from '../utils/scale';
 import { loadEventAssignments, getTeamAssignmentForEvent } from '../lib/eventAssignments';
+import { reconcileScoringWithTeamCount } from '../lib/scoring';
+
+const DEFAULT_INFRACTIONS = [
+  { id: 'false_start', label: 'False Start', delta: -2, allowMultiple: true },
+  { id: 'athlete_selection_clock', label: 'Athlete Selection-Clock Violation', delta: -3, allowMultiple: false },
+  { id: 'lane_violation', label: 'Lane Violation', delta: -5, allowMultiple: false },
+  { id: 'baton_exchange', label: 'Baton Exchange Violation', delta: -5, allowMultiple: false },
+  { id: 'obstruction', label: 'Obstruction', delta: -5, allowMultiple: false },
+];
 
 const ScoreboardScreen = ({ navigation }) => {
   const [teams, setTeams] = useState([]);
@@ -25,7 +34,7 @@ const ScoreboardScreen = ({ navigation }) => {
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [showResultForm, setShowResultForm] = useState(false);
   const [showAllTeamScores, setShowAllTeamScores] = useState(false);
-  const [infractionPresets, setInfractionPresets] = useState([]); // [{id,label,delta}]
+  const [infractionPresets, setInfractionPresets] = useState(DEFAULT_INFRACTIONS);
   const [assignments, setAssignments] = useState([]);
   const [scoringSettings, setScoringSettings] = useState({ places: [] }); // Load from Settings
   const [expandedEvents, setExpandedEvents] = useState(new Set()); // Track which events are expanded
@@ -57,11 +66,25 @@ const ScoreboardScreen = ({ navigation }) => {
     loadData();
   }, []);
 
-  // Reload assignments when screen comes into focus
+  // Reload assignments and scoring when screen comes into focus
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', async () => {
       const assignmentsData = await loadEventAssignments();
       setAssignments(assignmentsData);
+      // Re-read and reconcile scoring in case it changed while away
+      try {
+        const [savedScoring, savedTeams] = await Promise.all([
+          AsyncStorage.getItem('settings.scoring'),
+          AsyncStorage.getItem('teams'),
+        ]);
+        const teamCount = savedTeams ? JSON.parse(savedTeams).length : 0;
+        const parsed = savedScoring ? JSON.parse(savedScoring) : null;
+        const reconciled = reconcileScoringWithTeamCount(
+          parsed && Array.isArray(parsed.places) ? parsed : null,
+          teamCount
+        );
+        if (reconciled) setScoringSettings(reconciled);
+      } catch {}
     });
 
     return unsubscribe;
@@ -71,23 +94,42 @@ const ScoreboardScreen = ({ navigation }) => {
   useEffect(() => {
     const handleScoringUpdate = async () => {
       try {
-        const savedScoring = await AsyncStorage.getItem('settings.scoring');
-        if (savedScoring) {
-          const parsed = JSON.parse(savedScoring);
-          if (parsed && Array.isArray(parsed.places)) {
-            setScoringSettings(parsed);
-          }
-        }
-      } catch (error) {
-        console.log('Error loading updated scoring settings:', error);
-      }
+        const [savedScoring, savedTeams] = await Promise.all([
+          AsyncStorage.getItem('settings.scoring'),
+          AsyncStorage.getItem('teams'),
+        ]);
+        const teamCount = savedTeams ? JSON.parse(savedTeams).length : 0;
+        const parsed = savedScoring ? JSON.parse(savedScoring) : null;
+        const reconciled = reconcileScoringWithTeamCount(
+          parsed && Array.isArray(parsed.places) ? parsed : null,
+          teamCount
+        );
+        if (reconciled) setScoringSettings(reconciled);
+      } catch {}
     };
 
-    // Listen for settings updates
+    const handleInfractionsUpdate = async () => {
+      try {
+        const saved = await AsyncStorage.getItem('settings.infractions');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed && Array.isArray(parsed.items) && parsed.items.length > 0) {
+            setInfractionPresets(parsed.items.map(it => ({ id: it.id, label: it.label, delta: Number(it.delta) || 0 })));
+          } else {
+            setInfractionPresets(DEFAULT_INFRACTIONS);
+          }
+        } else {
+          setInfractionPresets(DEFAULT_INFRACTIONS);
+        }
+      } catch {}
+    };
+
     eventBus.on('settings.scoring.updated', handleScoringUpdate);
+    eventBus.on('settings.infractions.updated', handleInfractionsUpdate);
 
     return () => {
       eventBus.off('settings.scoring.updated', handleScoringUpdate);
+      eventBus.off('settings.infractions.updated', handleInfractionsUpdate);
     };
   }, []);
 
@@ -115,17 +157,28 @@ const ScoreboardScreen = ({ navigation }) => {
       if (savedInfractions) {
         try {
           const parsed = JSON.parse(savedInfractions);
-          if (parsed && Array.isArray(parsed.items)) {
+          if (parsed && Array.isArray(parsed.items) && parsed.items.length > 0) {
             setInfractionPresets(parsed.items.map(it => ({ id: it.id, label: it.label, delta: Number(it.delta) || 0 })));
+          } else {
+            setInfractionPresets(DEFAULT_INFRACTIONS);
           }
-        } catch {}
+        } catch {
+          setInfractionPresets(DEFAULT_INFRACTIONS);
+        }
+      } else {
+        setInfractionPresets(DEFAULT_INFRACTIONS);
       }
-      if (savedScoring) {
+      {
+        // Reconcile saved scoring against the actual team count so stale or
+        // mismatched values are automatically corrected to the right preset.
+        const teamCount = savedTeams ? JSON.parse(savedTeams).length : 0;
         try {
-          const parsed = JSON.parse(savedScoring);
-          if (parsed && Array.isArray(parsed.places)) {
-            setScoringSettings(parsed);
-          }
+          const parsed = savedScoring ? JSON.parse(savedScoring) : null;
+          const reconciled = reconcileScoringWithTeamCount(
+            parsed && Array.isArray(parsed.places) ? parsed : null,
+            teamCount
+          );
+          if (reconciled) setScoringSettings(reconciled);
         } catch {}
       }
       
@@ -1006,7 +1059,7 @@ const EventResultForm = ({ eventName, teams, eventIndex, assignments, onSubmit, 
               )}
 
               {infractionStep === 3 && (
-                <View>
+                <ScrollView showsVerticalScrollIndicator={false}>
                   {/* Compact summary of current selections */}
                   <View style={styles.summaryRow}>
                     <View style={styles.summaryChip}>
@@ -1051,7 +1104,7 @@ const EventResultForm = ({ eventName, teams, eventIndex, assignments, onSubmit, 
                       </View>
                     </View>
                   </View>
-                </View>
+                </ScrollView>
               )}
             </View>
 
@@ -1594,6 +1647,7 @@ const styles = StyleSheet.create({
   modalCard: {
     width: '100%',
     maxWidth: scale(480),
+    maxHeight: '88%',
     backgroundColor: '#2a2a2a',
     borderRadius: scale(12),
     borderWidth: 1,
@@ -1616,8 +1670,8 @@ const styles = StyleSheet.create({
     color: styleTokens.colors.textSecondary,
   },
   modalContent: {
-    maxHeight: scale(480),
-    paddingBottom: scale(20),
+    flexShrink: 1,
+    paddingBottom: scale(8),
   },
   modalFooter: {
     flexDirection: 'row',
