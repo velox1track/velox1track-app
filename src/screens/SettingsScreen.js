@@ -52,8 +52,8 @@ const SettingsScreen = ({ navigation }) => {
 
   // Scoring settings (places -> points)
   const [scoringSettings, setScoringSettings] = useState({ places: [
-    { place: 1, points: 20 }, { place: 2, points: 10 }, { place: 3, points: 9 }, { place: 4, points: 8 },
-    { place: 5, points: 7 }, { place: 6, points: 6 }, { place: 7, points: 5 }, { place: 8, points: -5 }
+    { place: 1, points: 10 }, { place: 2, points: 5 }, { place: 3, points: 4 }, { place: 4, points: 3 },
+    { place: 5, points: 2 }, { place: 6, points: 1 }, { place: 7, points: 0 }, { place: 8, points: -5 }
   ], activePresetId: 'default', syncToTeams: true });
   const [isSavingScoring, setIsSavingScoring] = useState(false);
 
@@ -430,8 +430,8 @@ const SettingsScreen = ({ navigation }) => {
 
   const resetScoringToDefault = () => {
     setScoringSettings({ places: [
-      { place: 1, points: 20 }, { place: 2, points: 10 }, { place: 3, points: 9 }, { place: 4, points: 8 },
-      { place: 5, points: 7 }, { place: 6, points: 6 }, { place: 7, points: 5 }, { place: 8, points: -5 }
+      { place: 1, points: 10 }, { place: 2, points: 5 }, { place: 3, points: 4 }, { place: 4, points: 3 },
+      { place: 5, points: 2 }, { place: 6, points: 1 }, { place: 7, points: 0 }, { place: 8, points: -5 }
     ], activePresetId: 'default', syncToTeams: true });
   };
 
@@ -449,14 +449,13 @@ const SettingsScreen = ({ navigation }) => {
   );
 
   const presetsByTeams = {
-    // User-provided 8T preset and derived 7–2T variants
-    8: [20, 10, 9, 8, 7, 6, 5, -5],
-    7: [20, 10, 9, 8, 7, 6, -5],
-    6: [20, 10, 9, 8, 7, -5],
-    5: [20, 10, 9, 8, -5],
-    4: [20, 10, 9, -5],
-    3: [20, 10, -5],
-    2: [20, -5],
+    8: [10, 5, 4, 3, 2, 1, 0, -5],
+    7: [10, 5, 4, 3, 2, 1, -5],
+    6: [10, 5, 4, 3, 2, -5],
+    5: [10, 5, 4, 3, -5],
+    4: [10, 5, 4, -5],
+    3: [10, 5, -5],
+    2: [5, -5],
   };
 
   const applyScoringPreset = (teamsNum) => {

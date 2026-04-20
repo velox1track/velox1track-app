@@ -36,7 +36,7 @@ const ScoreboardScreen = ({ navigation }) => {
 
   // Default scoring table (fallback if Settings not configured)
   const defaultScoringTable = {
-    1: 10, 2: 8, 3: 6, 4: 4, 5: 2, 6: 1
+    1: 10, 2: 5, 3: 4, 4: 3, 5: 2, 6: 1, 7: 0, 8: -5
   };
 
   // Convert scoring settings to lookup table
