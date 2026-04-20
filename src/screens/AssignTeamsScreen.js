@@ -99,6 +99,7 @@ const AssignTeamsScreen = () => {
                 const planned = parseInt(value || '0');
                 if (!isNaN(planned) && planned > 0) {
                   eventBus.emit('plannedTeamsUpdated', planned);
+                  try { await AsyncStorage.setItem('settings.teamConfig', JSON.stringify({ plannedTeams: planned })); } catch {}
                 }
               } catch (e) {
                 Alert.alert('Error', 'Failed to reset results.');
@@ -113,6 +114,7 @@ const AssignTeamsScreen = () => {
     const planned = parseInt(value || '0');
     if (!isNaN(planned) && planned > 0) {
       eventBus.emit('plannedTeamsUpdated', planned);
+      try { await AsyncStorage.setItem('settings.teamConfig', JSON.stringify({ plannedTeams: planned })); } catch {}
     }
   };
 
@@ -517,8 +519,41 @@ const AssignTeamsScreen = () => {
 
           <View style={styles.inputRow}>
             <View style={styles.inputGroupHalf}>
-              <MobileBody style={styles.teamSizeLabel}>Planned Teams</MobileBody>
-              <MobileCaption style={styles.teamSizeValue}>{Number(numTeams) || 0} (from Settings)</MobileCaption>
+              <MobileBody style={styles.teamSizeLabel}>
+                {teams.length > 0 ? 'Active Teams' : 'Number of Teams'}
+              </MobileBody>
+              {teams.length > 0 ? (
+                <View style={[styles.atStepper, styles.atStepperDisabled]}>
+                  <View style={[styles.atStepperBtn, styles.atStepperBtnDisabled]}>
+                    <MobileBody style={[styles.atStepperBtnText, styles.atStepperBtnTextDisabled]}>−</MobileBody>
+                  </View>
+                  <MobileBody style={[styles.atStepperValue, styles.atStepperValueLocked]}>{teams.length}</MobileBody>
+                  <View style={[styles.atStepperBtn, styles.atStepperBtnDisabled]}>
+                    <MobileBody style={[styles.atStepperBtnText, styles.atStepperBtnTextDisabled]}>+</MobileBody>
+                  </View>
+                </View>
+              ) : (
+                <View style={styles.atStepper}>
+                  <Pressable
+                    style={styles.atStepperBtn}
+                    onPress={() => handleNumTeamsChange(String(Math.max(2, parseInt(numTeams || '2') - 1)))}
+                    accessibilityLabel="Decrease team count"
+                  >
+                    <MobileBody style={styles.atStepperBtnText}>−</MobileBody>
+                  </Pressable>
+                  <MobileBody style={styles.atStepperValue}>{numTeams || '0'}</MobileBody>
+                  <Pressable
+                    style={styles.atStepperBtn}
+                    onPress={() => handleNumTeamsChange(String(Math.min(32, parseInt(numTeams || '0') + 1)))}
+                    accessibilityLabel="Increase team count"
+                  >
+                    <MobileBody style={styles.atStepperBtnText}>+</MobileBody>
+                  </Pressable>
+                </View>
+              )}
+              {teams.length > 0 && (
+                <MobileCaption style={styles.atStepperHint}>Reset teams to change</MobileCaption>
+              )}
             </View>
             <View style={[styles.inputGroupHalf, styles.teamSizeGroup]}>
               <MobileBody style={styles.teamSizeLabel}>Team Size</MobileBody>
@@ -541,7 +576,7 @@ const AssignTeamsScreen = () => {
                 Generate Teams
               </ButtonPrimary>
               {!isPlannedTeamsValid && (
-                <MobileCaption style={styles.plannedHint}>Set planned team count in Settings → Team Configuration</MobileCaption>
+                <MobileCaption style={styles.plannedHint}>Set number of teams above using + / −</MobileCaption>
               )}
             </>
           ) : (
@@ -998,6 +1033,53 @@ const styles = StyleSheet.create({
     color: styleTokens.colors.textSecondary,
     textAlign: 'center',
     marginTop: scale(6),
+  },
+  atStepper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scale(8),
+    backgroundColor: styleTokens.colors.backgroundLight,
+    borderRadius: scale(8),
+    borderWidth: 1,
+    borderColor: styleTokens.components.card.borderColor,
+    paddingHorizontal: scale(8),
+    paddingVertical: scale(6),
+    alignSelf: 'flex-start',
+  },
+  atStepperDisabled: {
+    opacity: 0.45,
+  },
+  atStepperBtn: {
+    width: scale(32),
+    height: scale(32),
+    borderRadius: scale(6),
+    backgroundColor: styleTokens.colors.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  atStepperBtnDisabled: {
+    backgroundColor: styleTokens.colors.border,
+  },
+  atStepperBtnText: {
+    color: styleTokens.colors.textPrimary,
+    fontWeight: '700',
+  },
+  atStepperBtnTextDisabled: {
+    color: styleTokens.colors.textSecondary,
+  },
+  atStepperValue: {
+    minWidth: scale(32),
+    textAlign: 'center',
+    color: styleTokens.colors.textPrimary,
+    fontWeight: '700',
+  },
+  atStepperValueLocked: {
+    color: styleTokens.colors.textSecondary,
+  },
+  atStepperHint: {
+    color: styleTokens.colors.textSecondary,
+    marginTop: scale(4),
+    fontStyle: 'italic',
   },
   teamsSection: {
     padding: scale(20),
